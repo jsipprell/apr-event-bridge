@@ -7,7 +7,7 @@ AM_INIT_AUTOMAKE([subdir-objects])
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
-LT_INIT
+LT_INIT([disable-static])
 AC_PROG_INSTALL
 AC_LANG_C
 AM_PROG_CC_C_O
@@ -27,7 +27,7 @@ LIBAEB_REVISION=1
 
 dnl PLATFORM_CFLAGS="-fno-strict-aliasing"
 PLATFORM_CFLAGS=
-LIBAEB_EXTRA_CPPFLAGS="-DHAVE_LIBZEB_CONFIG_H"
+LIBAEB_EXTRA_CPPFLAGS="-DHAVE_LIBAEB_CONFIG_H"
 LIBAEB_LINK=
 LIBAEB_LIBS=
 LIBAEB_INCLUDE=
@@ -57,6 +57,12 @@ AC_ARG_ENABLE(threading,
 
 AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$enable_install_pkgconfig" != x"no" ])
 
+AS_IF([test x"$libaeb_cf_debug" = x"unset"],
+  [AM_SILENT_RULES([yes])],
+  [enable_shared=no
+   enable_static=yes
+   AM_SILENT_RULES([no])])
+
 AS_CASE($libaeb_cf_debug,
   [gdb],[CFLAGS="-ggdb3 -Wall"
          libaeb_cf_debugging_macro=yes],
@@ -71,6 +77,8 @@ AS_CASE($libaeb_cf_debug,
 AS_IF([test x"$libaeb_cf_debugging_macro" = x"yes"],
   [AC_DEFINE([DEBUGGING],[1],[Define to enable extra debugging])])
 
+AEB_CHECK_GCC_VISIBILITY
+AEB_CHECK_ALIAS_ATTRIBUTE
 
 AS_IF([test x"$enable_threading" = x"yes"],
   [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
@@ -181,6 +189,7 @@ AC_SUBST([PLATFORM_CFLAGS])
 AC_SUBST([LIBAEB_ABI_MAJOR])
 AC_SUBST([LIBAEB_ABI_COMPAT])
 AC_SUBST([LIBAEB_API_VERSION])
+AC_SUBST([LIBAEB_REVISION])
 AC_SUBST([LIBAEB_VERSION])
 AC_SUBST([LIBAEB_LIBS])
 AC_SUBST([LIBAEB_LINK])
@@ -190,4 +199,4 @@ AC_SUBST([LIBEVENT_PKGCONFIG_NAME])
 
 AM_CONFIG_HEADER([include/libaeb_config.h])
 
-AC_OUTPUT([Makefile src/apr_event_bridge.pc])
+AC_OUTPUT([Makefile include/libaeb_version.h src/apr_event_bridge.pc])

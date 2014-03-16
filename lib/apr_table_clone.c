@@ -1,6 +1,6 @@
 #include "internal.h"
 
-ZEKE_API(apr_table_t*) apr_table_clone(apr_pool_t *pool, const apr_table_t *table)
+AEB_API(apr_table_t*) apr_table_clone(apr_pool_t *pool, const apr_table_t *table)
 {
   apr_table_t *new_table;
   const apr_array_header_t *ta = NULL;

@@ -8,4 +8,4 @@ Description: Apache Portable Runtime libevent bridge library
 Version: @PACKAGE_VERSION@
 Requires: apr-1 apr-util-1 @LIBEVENT_PKGCONFIG_NAME@
 Libs: -L${libdir} @LIBAEB_LINK@ -laeb
-Cflags: -I${includedir}/aeb -I${includedir} @LIBAEB_INCLUDE@ @PLATFORM_CFLAGS@
+Cflags: -I${includedir}/apr_event_bridge -I${includedir} @LIBAEB_INCLUDE@ @PLATFORM_CFLAGS@

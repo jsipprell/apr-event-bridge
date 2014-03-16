@@ -1212,6 +1212,7 @@ AC_SUBST([am__tar])
 AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
+m4_include([build/attribute_may_alias.m4])
 m4_include([build/find_apr.m4])
 m4_include([build/find_apu.m4])
 m4_include([build/libtool.m4])
@@ -1220,3 +1221,4 @@ m4_include([build/ltsugar.m4])
 m4_include([build/ltversion.m4])
 m4_include([build/lt~obsolete.m4])
 m4_include([build/pkg.m4])
+m4_include([build/visibility_hidden.m4])
