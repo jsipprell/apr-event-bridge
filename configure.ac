@@ -90,7 +90,6 @@ AEB_CHECK_ALIAS_ATTRIBUTE
 AS_IF([test x"$enable_threading" = x"yes"],
   [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
   [LIBEVENT_PKGCONFIG_NAME=libevent])
-
 PKG_CHECK_MODULES([LIBEVENT],[$LIBEVENT_PKGCONFIG_NAME])
 
 dnl we don't use pkg-config for this because it's difficult to precisely control
@@ -123,6 +122,12 @@ AS_IF([test x"$APR_LIBS" != x""],
   [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$APR_LIBS"],[])
 AS_IF([test x"$APR_UTIL_LIBS" != x""],
   [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$APR_UTIL_LIBS"],[])
+
+AS_IF([test x"$enable_threading" = x"yes"],
+  [AEB_HAS_THREADS(
+     [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable multi-threading support])],
+     [AC_MSG_ERROR([Apache Portable Runtime not configured for multi-threading])]
+)])
 
 AS_IF([test x"$LIBEVENT_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_CFLAGS"

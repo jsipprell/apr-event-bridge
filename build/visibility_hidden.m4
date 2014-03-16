@@ -18,7 +18,7 @@ EOF
       _aeb_vis=yes
     fi
       
-    ac_cv_have_visibility_attribute="${ac_cv_have_visibility_attribte:-$_aeb_vis}"
+    ac_cv_have_visibility_attribute="${ac_cv_have_visibility_attribute:-$_aeb_vis}"
     ac_cv_gcc_visibility_hidden="${ac_cv_gcc_visibility_hidden:-${_aeb_vis_hidden}}"
     ac_cv_gcc_visibility_export="${ac_cv_gcc_visibility_export:-${_aeb_vis_export}}"
   fi

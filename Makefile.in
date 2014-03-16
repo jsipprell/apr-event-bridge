@@ -97,7 +97,8 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(top_srcdir)/build/config.sub $(top_srcdir)/build/install-sh \
 	$(top_srcdir)/build/ltmain.sh $(top_srcdir)/build/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/build/attribute_may_alias.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/build/aeb_has_threads.m4 \
+	$(top_srcdir)/build/attribute_may_alias.m4 \
 	$(top_srcdir)/build/find_apr.m4 \
 	$(top_srcdir)/build/find_apu.m4 $(top_srcdir)/build/libtool.m4 \
 	$(top_srcdir)/build/ltoptions.m4 \
