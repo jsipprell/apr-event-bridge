@@ -19,14 +19,18 @@ AC_ARG_VAR(APR_LIBS,[Apache Portable Runtime libraries])
 AC_ARG_VAR(APR_UTIL_LIBS,[Apache Portable Runtime Utility libaries])
 AC_ARG_VAR(APR_CFLAGS,[Apache Portable Runtime CFLAGS])
 AC_ARG_VAR(DEBUG_CFLAGS,[additional debugging CFLAGS])
+AC_ARG_VAR(PLATFORM_CFLAGS,[CFLAGS specific to the target platform])
 
 LIBAEB_ABI_COMPAT=0
 LIBAEB_ABI_MAJOR=0
 LIBAEB_API_VERSION=0
 LIBAEB_REVISION=1
 
-dnl PLATFORM_CFLAGS="-fno-strict-aliasing"
-PLATFORM_CFLAGS=
+AS_IF([test x"$PLATFORM_CFLAGS" = x""],
+  [AS_CASE($target_os,
+    [darwin*],[PLATFORM_CFLAGS=-fvisibility=hidden],
+    [PLATFORM_CFLAGS=])])
+
 LIBAEB_EXTRA_CPPFLAGS="-DHAVE_LIBAEB_CONFIG_H"
 LIBAEB_LINK=
 LIBAEB_LIBS=
@@ -62,6 +66,9 @@ AS_IF([test x"$libaeb_cf_debug" = x"unset"],
   [enable_shared=no
    enable_static=yes
    AM_SILENT_RULES([no])])
+
+AS_IF([test x"$PLATFORM_CFLAGS" != x""],
+  [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
 
 AS_CASE($libaeb_cf_debug,
   [gdb],[CFLAGS="-ggdb3 -Wall"
@@ -184,7 +191,6 @@ AS_IF([test 0"$APR_MAJOR_VERSION" -eq 1],
 ])
 
 AC_SUBST([LIBAEB_EXTRA_CPPFLAGS])
-AC_SUBST([PLATFORM_CFLAGS])
 
 AC_SUBST([LIBAEB_ABI_MAJOR])
 AC_SUBST([LIBAEB_ABI_COMPAT])
