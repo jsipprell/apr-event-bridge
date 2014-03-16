@@ -1,0 +1,2 @@
+Apache Portable Runtime "glue" library intended to prevent an apr-style abstraction interface
+to libevent.

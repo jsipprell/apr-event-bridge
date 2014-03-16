@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: APR Event Bridge
+Description: Apache Portable Runtime libevent bridge library
+Version: @PACKAGE_VERSION@
+Requires: apr-1 apr-util-1 @LIBEVENT_PKGCONFIG_NAME@
+Libs: -L${libdir} @LIBAEB_LINK@ -laeb
+Cflags: -I${includedir}/aeb -I${includedir} @LIBAEB_INCLUDE@ @PLATFORM_CFLAGS@

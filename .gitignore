@@ -1,0 +1,10 @@
+autom4te.cache
+config.log
+config.status
+configure
+stamp-h1
+Makefile
+*.la
+.deps/
+.libs/
+.dirstamp
