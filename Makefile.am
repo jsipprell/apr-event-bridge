@@ -22,6 +22,7 @@ endif
 
 lib_LTLIBRARIES = libaeb.la
 noinst_LTLIBRARIES = libaeb-static.la libcompat.la
+noinst_PROGRAMS = test-aeb
 
 libaeb_la_includedir = $(includedir)/apr_event_bridge
 libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
@@ -36,8 +37,12 @@ libcompat_la_LIBADD = @LTLIBOBJS@
 
 libaeb_la_SOURCES = include/internal.h include/compat.h include/util.h \
                     src/util.c \
+                    src/base.c \
                     src/event.c
 libaeb_la_LIBADD = libcompat.la
 
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
 libaeb_static_la_LIBADD = libcompat.la
+
+test_aeb_SOURCES = src/test.c
+test_aeb_LDADD = @LIBAEB_LIBS@ libaeb-static.la

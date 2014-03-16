@@ -16,6 +16,7 @@
 
 
 
+
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -81,6 +82,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+noinst_PROGRAMS = test-aeb$(EXEEXT)
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
@@ -147,7 +149,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libaeb_static_la_DEPENDENCIES = libcompat.la
 am__dirstamp = $(am__leading_dot)dirstamp
-am__objects_1 = src/util.lo src/event.lo
+am__objects_1 = src/util.lo src/base.lo src/event.lo
 am_libaeb_static_la_OBJECTS = $(am__objects_1)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -155,7 +157,7 @@ am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 libaeb_la_DEPENDENCIES = libcompat.la
-am_libaeb_la_OBJECTS = src/util.lo src/event.lo
+am_libaeb_la_OBJECTS = src/util.lo src/base.lo src/event.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -164,6 +166,10 @@ LIBOBJDIR = lib/
 libcompat_la_DEPENDENCIES = @LTLIBOBJS@
 am_libcompat_la_OBJECTS = lib/stub.lo
 libcompat_la_OBJECTS = $(am_libcompat_la_OBJECTS)
+PROGRAMS = $(noinst_PROGRAMS)
+am_test_aeb_OBJECTS = src/test.$(OBJEXT)
+test_aeb_OBJECTS = $(am_test_aeb_OBJECTS)
+test_aeb_DEPENDENCIES = libaeb-static.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -199,9 +205,9 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(libaeb_static_la_SOURCES) $(libaeb_la_SOURCES) \
-	$(libcompat_la_SOURCES)
+	$(libcompat_la_SOURCES) $(test_aeb_SOURCES)
 DIST_SOURCES = $(libaeb_static_la_SOURCES) $(libaeb_la_SOURCES) \
-	$(libcompat_la_SOURCES)
+	$(libcompat_la_SOURCES) $(test_aeb_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -453,11 +459,14 @@ libcompat_la_SOURCES = lib/stub.c include/compat.h
 libcompat_la_LIBADD = @LTLIBOBJS@
 libaeb_la_SOURCES = include/internal.h include/compat.h include/util.h \
                     src/util.c \
+                    src/base.c \
                     src/event.c
 
 libaeb_la_LIBADD = libcompat.la
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
 libaeb_static_la_LIBADD = libcompat.la
+test_aeb_SOURCES = src/test.c
+test_aeb_LDADD = @LIBAEB_LIBS@ libaeb-static.la
 all: all-recursive
 
 .SUFFIXES:
@@ -568,6 +577,7 @@ src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
 src/util.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 libaeb-static.la: $(libaeb_static_la_OBJECTS) $(libaeb_static_la_DEPENDENCIES) $(EXTRA_libaeb_static_la_DEPENDENCIES) 
@@ -586,6 +596,20 @@ lib/stub.lo: lib/$(am__dirstamp) lib/$(DEPDIR)/$(am__dirstamp)
 libcompat.la: $(libcompat_la_OBJECTS) $(libcompat_la_DEPENDENCIES) $(EXTRA_libcompat_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libcompat_la_OBJECTS) $(libcompat_la_LIBADD) $(LIBS)
 
+clean-noinstPROGRAMS:
+	@list='$(noinst_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+src/test.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+
+test-aeb$(EXEEXT): $(test_aeb_OBJECTS) $(test_aeb_DEPENDENCIES) $(EXTRA_test_aeb_DEPENDENCIES) 
+	@rm -f test-aeb$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_aeb_OBJECTS) $(test_aeb_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f lib/*.$(OBJEXT)
@@ -599,7 +623,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/apr_array_clear.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/apr_table_clone.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/stub.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/base.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Plo@am__quote@
 
 .c.o:
@@ -975,7 +1001,7 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-recursive
-all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
+all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(DATA) $(HEADERS)
 installdirs: installdirs-recursive
 installdirs-am:
 	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(libaeb_la_includedir)"; do \
@@ -1020,7 +1046,7 @@ maintainer-clean-generic:
 clean: clean-recursive
 
 clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
-	clean-noinstLTLIBRARIES mostlyclean-am
+	clean-noinstLTLIBRARIES clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -1098,21 +1124,22 @@ uninstall-am: uninstall-libLTLIBRARIES \
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am \
 	am--refresh check check-am clean clean-cscope clean-generic \
 	clean-libLTLIBRARIES clean-libtool clean-noinstLTLIBRARIES \
-	cscope cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
-	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
-	distcheck distclean distclean-compile distclean-generic \
-	distclean-hdr distclean-libtool distclean-tags distcleancheck \
-	distdir distuninstallcheck dvi dvi-am html html-am info \
-	info-am install install-am install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-libaeb_la_includeHEADERS \
-	install-man install-pdf install-pdf-am install-pkgconfigDATA \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
+	clean-noinstPROGRAMS cscope cscopelist-am ctags ctags-am dist \
+	dist-all dist-bzip2 dist-gzip dist-lzip dist-shar dist-tarZ \
+	dist-xz dist-zip distcheck distclean distclean-compile \
+	distclean-generic distclean-hdr distclean-libtool \
+	distclean-tags distcleancheck distdir distuninstallcheck dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-libLTLIBRARIES \
+	install-libaeb_la_includeHEADERS install-man install-pdf \
+	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-libLTLIBRARIES \
 	uninstall-libaeb_la_includeHEADERS uninstall-pkgconfigDATA
 
 

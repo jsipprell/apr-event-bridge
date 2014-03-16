@@ -49,4 +49,6 @@ typedef enum {
 #define AEB_EVENT_HAS_TIMEOUT aeb_event_has_timeout
 } aeb_event_flag_e;
 
+AEB_DECL_INTERNAL(struct event_base*) aeb_event_base(void);
+
 #endif /* _LIBAEB_INTERNAL_H */
