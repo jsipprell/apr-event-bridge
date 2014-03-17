@@ -149,7 +149,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libaeb_static_la_DEPENDENCIES = libcompat.la
 am__dirstamp = $(am__leading_dot)dirstamp
-am__objects_1 = src/util.lo src/base.lo src/event.lo
+am__objects_1 = src/util.lo src/weakref.lo src/base.lo src/event.lo
 am_libaeb_static_la_OBJECTS = $(am__objects_1)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -157,7 +157,8 @@ am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 libaeb_la_DEPENDENCIES = libcompat.la
-am_libaeb_la_OBJECTS = src/util.lo src/base.lo src/event.lo
+am_libaeb_la_OBJECTS = src/util.lo src/weakref.lo src/base.lo \
+	src/event.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -457,8 +458,9 @@ libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
 libcompat_la_SOURCES = lib/stub.c include/compat.h
 libcompat_la_LIBADD = @LTLIBOBJS@
-libaeb_la_SOURCES = include/internal.h include/compat.h include/util.h \
-                    src/util.c \
+libaeb_la_SOURCES = include/internal.h include/compat.h \
+                    include/util.h src/util.c \
+                    include/weakref.h src/weakref.c \
                     src/base.c \
                     src/event.c
 
@@ -577,6 +579,7 @@ src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
 src/util.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/weakref.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
@@ -627,6 +630,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/weakref.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\

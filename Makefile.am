@@ -35,8 +35,9 @@ libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAE
 libcompat_la_SOURCES = lib/stub.c include/compat.h
 libcompat_la_LIBADD = @LTLIBOBJS@
 
-libaeb_la_SOURCES = include/internal.h include/compat.h include/util.h \
-                    src/util.c \
+libaeb_la_SOURCES = include/internal.h include/compat.h \
+                    include/util.h src/util.c \
+                    include/weakref.h src/weakref.c \
                     src/base.c \
                     src/event.c
 libaeb_la_LIBADD = libcompat.la
