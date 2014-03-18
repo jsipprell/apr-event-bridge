@@ -85,6 +85,12 @@
 /* libevent */
 #include <event.h>
 
+#ifdef AEB_USE_THREADS
+# ifdef HAVE_EVENT2_THREAD_H
+# include <event2/thread.h>
+# endif /* HAVE_EVENT2_THREAD_H */
+#endif /* AEB_USE_THREADS */
+
 #ifndef APR_VERSION_AT_LEAST
 #define APR_VERSION_AT_LEAST(major,minor,patch)                    \
                           (((major) < APR_MAJOR_VERSION)           \

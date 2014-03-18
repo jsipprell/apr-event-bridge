@@ -3,14 +3,19 @@
 
 #include <libaeb.h>
 
+#ifdef HAVE_ASSERT_H
+#include <assert.h>
+#endif
+
 AEB_API(void) aeb_abort(const char *fmt, ...)
               __attribute__((format(printf,1,2)));
 AEB_API(const char*) aeb_abort_msg(const char *fmt, ...)
               __attribute__((format(printf,1,2)));
 
+#define ASSERT assert
 #if defined(NDEBUG) && !defined(DEBUGGING)
-# define AEB_ASSERT(cond,msg) cond
-# define AEB_ASSERTV(cond,fmt,...) cond
+# define AEB_ASSERT(cond,msg) assert(cond)
+# define AEB_ASSERTV(cond,fmt,...) assert(cond)
 #else /* !NDEBUG || DEBUGGING */
 # define AEB_ASSERT(cond,msg) { if ( !(cond) ) { \
   aeb_abort("assertion_failure: '%s' at " APR_POOL__FILE_LINE__, (msg) ); \

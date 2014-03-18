@@ -9,9 +9,13 @@ LIBAEB_REVISION = @LIBAEB_REVISION@
 AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 
-EXTRA_DIST = LICENSE build/find_apu.m4 build/find_apr.m4 \
-                     build/attribute_may_alias.m4 \
-                     build/visibility_hidden.m4
+EXTRA_DIST = LICENSE README.threads.md \
+             build/find_apu.m4 build/find_apr.m4 \
+             build/attribute_may_alias.m4 \
+             build/visibility_hidden.m4 \
+             build/aeb_event_check_threads.m4 \
+             build/aeb_has_threads.m4 \
+             build/m4/aeb_args.m4
 
 SUBDIRS = .
 

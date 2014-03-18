@@ -1,4 +1,4 @@
-AC_INIT(apr_event_bridge,0.0.1)
+AC_INIT(apr-event-bridge,0.0.1)
 AC_COPYRIGHT([[Copyright 2014, Jesse Sipprell.
 All rights reserved.]])
 builtin(include, build/m4/aeb_args.m4)
@@ -44,7 +44,7 @@ LIBAEB_VERSION="\"${LIBAEB_API_VERSION}.${LIBAEB_REVISION}\""
 libaeb_cf_debugging_macro=no
 
 AEB_ARG_ENABLE(debug,
-  AS_HELP_STRING([--enable-debug],
+  AS_HELP_STRING([--enable-debug@<:@=MODE@:>@],
     [Enable runtime debugging]),
     [unset],[yes no gdb])
 
@@ -54,7 +54,7 @@ AEB_ARG_ENABLE(install-pc,
     [yes],[yes no])
 
 AEB_ARG_ENABLE(threads,
-  [AS_HELP_STRING([--enable-threads],
+  [AS_HELP_STRING([--enable-threads@<:@=OPTION@:>@],
     [Enable thread support])],[auto],[yes no auto])
 
 AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$aeb_enable_install_pc" = x"yes" ])
@@ -114,20 +114,34 @@ AS_IF([test x"$APR_UTIL_LIBS" != x""],
   [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$APR_UTIL_LIBS"],[])
 
 AS_IF([test x"$aeb_enable_threads" != x"no"],
-  [AEB_HAS_THREADS(
-     [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable thread support])],
-     [
-      AS_VAR_IF([aeb_enable_threads],[auto],
+  [AEB_HAS_THREADS([],
+    [AS_VAR_IF([aeb_enable_threads],[auto],
                 [aeb_enable_threads=no
-                AC_MSG_WARN([Thread support disabled])],
+                 AC_MSG_WARN([Thread support disabled])],
                 [AC_MSG_ERROR([Apache Portable Runtime not configured for thread support!])])
      ])dnl
 ])
 
-AS_IF([test x"$aeb_enable_threads" != x"no"],
-  [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
-  [LIBEVENT_PKGCONFIG_NAME=libevent])
-PKG_CHECK_MODULES([LIBEVENT],[$LIBEVENT_PKGCONFIG_NAME])
+AS_VAR_IF([aeb_enable_threads],[no],
+  [LIBEVENT_PKGCONFIG_NAME=libevent
+   PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
+  [PKG_CHECK_MODULES([LIBEVENT],[libevent_pthreads >= 2.0.0],
+    [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
+    [AS_VAR_IF([aeb_enable_threads],[yes],
+      [AC_MSG_WARN([libevent thread support unavailable via pkg-config, ignoring, but may cause issues later...])
+       LIBEVENT_PKGCONFIG_NAME=libevent
+       AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
+       PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
+      [AC_MSG_WARN([libevent thread support unavailable via pkg-config, please use --enable-threads to force building w/ thread support])
+       aeb_enable_threads=no
+       LIBEVENT_PKGCONFIG_NAME=libevent
+       AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
+       PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])])
+    ])dnl
+])
+
+PKG_CHECK_VAR([LIBEVENT_INCDIR],[$LIBEVENT_PKGCONFIG_NAME],[includedir],
+                [LIBEVENT_CPPFLAGS="-I$LIBEVENT_INCDIR"])
 
 AS_IF([test x"$LIBEVENT_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_CFLAGS"
@@ -165,8 +179,13 @@ LIBS="$libaeb_main_save_LIBS"
 AS_IF([test x"$aeb_enable_threads" != x"no"],
   [AEB_EVENT_CHECK_THREADS(
     [AC_DEFINE_UNQUOTED([PLATFORM_THREAD_TYPE],[["]$libevent_thread_type["]],
-        [Define to the type of thread supported on your platform (pthreads, windows, etc)])],
-    [AC_MSG_FAILURE([Your libevent is too old or not configured for threads support!])])
+        [Define to the type of thread supported on your platform (pthreads, windows, etc)])
+     aeb_enable_threads=yes],
+    [AS_VAR_IF([aeb_enable_threads],[auto],
+      [aeb_enable_threads=no
+       AC_MSG_WARN([Thread support disabled])],
+      [AC_MSG_FAILURE([Your libevent is too old or not configured for thread support!])]
+    )])
   ])
 
 AC_RUN_IFELSE(
@@ -204,6 +223,9 @@ AS_IF([test 0"$APR_MAJOR_VERSION" -eq 1],
   ])],
   [AC_MSG_ERROR([Unsupported major version of the Apache Portable Runtime, require version 1.2/1.3/1.x.])dnl
 ])
+
+AS_IF([test x"$aeb_enable_threads" != x"no"],
+  [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable thread support])])
 
 AC_SUBST([LIBAEB_EXTRA_CPPFLAGS])
 
