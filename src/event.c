@@ -1,24 +1,14 @@
 #include "internal.h"
 
-struct aeb_event {
-  apr_pool_t *pool;
-  apr_pool_t *associated_pool;
-  struct event event;
-  const apr_pollfd_t *descriptor;
-  aeb_event_callback_fn callback;
-  apr_time_t timeout;
-  apr_uint16_t flags;
-};
-
 AEB_POOL_IMPLEMENT_ACCESSOR(event)
-
-typedef apr_status_t (*cleanup_fn)(void*);
 
 static apr_status_t *aeb_event_cleanup(aeb_event_t *ev)
 {
   if(ev->flags & AEB_EVENT_ADDED) {
+    struct event *event = ev->event;
     ev->flags &= ~AEB_EVENT_ADDED;
-    event_del(&ev->event);
+    ev->event = NULL;
+    event_del(event);
   }
 
   return APR_SUCCESS;
@@ -32,45 +22,94 @@ static void internal_event_add(aeb_event_t *ev)
     AEB_ASSERT(apr_os_imp_time_get(&tv,&ev->timeout) == APR_SUCCESS,
                "apr_os_imp_time_get failure");
   }
-  event_add(&ev->event,tv);
+  event_add(ev->event,tv);
   ev->flags |= AEB_EVENT_ADDED;  
 }
 
 static void internal_event_del(aeb_event_t *ev)
 {
   ev->flags &= ~AEB_EVENT_ADDED;
-  event_del(&ev->event);
+  event_del(ev->event);
+}
+
+static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
+{
+  apr_status_t st = APR_SUCCESS;
+  apr_uint16_t flags = ((evflags & 0x00ff) << 8);
+  apr_pool_t *pool;
+  int destroy_pool = 0;
+  aeb_event_t *ev = (aeb_event_t*)data;
+
+  if(ev->callback) {
+    if(ev->associated_pool)
+      pool = ev->associated_pool;
+    else {
+      ASSERT(apr_pool_create(&pool,ev->pool) == APR_SUCCESS);
+      destroy_pool++;
+    }
+
+    /* FIXME: add event_info as second arg */
+    st = ev->callback(pool,aeb_event_info_new(ev,AEB_DESCRIPTOR_EVENT_DATA(ev),flags),
+                      ev->user_context);
+    if(st != APR_SUCCESS)
+      fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
+  }
+
+  if(destroy_pool)
+    apr_pool_destroy(pool);
+}
+
+AEB_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t *pool,
+                                         aeb_event_callback_fn callback,
+                                         apr_interval_time_t *timeout)
+{
+  aeb_event_t *ev;
+  apr_size_t event_sz = event_get_struct_event_size();
+
+  ASSERT(pool != NULL);
+  ASSERT((ev = apr_palloc(pool,sizeof(struct aeb_event))) != NULL);
+  ev->pool = pool;
+  ev->callback = callback;
+  ev->associated_pool = NULL;
+  ev->type = AEB_NULL_EVENT;
+  memset(&ev->d,0,sizeof(ev->d));
+  ev->flags = 0;
+  memset(&ev->timeout,0,sizeof(ev->timeout));
+  if (timeout) {
+    memcpy(&ev->timeout,timeout,sizeof(apr_interval_time_t));
+    ev->flags |= AEB_EVENT_HAS_TIMEOUT;
+  }
+
+  ev->event = apr_palloc(ev->pool,event_sz < sizeof(struct event) ? sizeof(struct event) : event_sz);
+  AEB_ASSERT(ev->event,"apr_palloc failed while allocating struct event");
+  AEB_ASSERT(event_assign(ev->event,aeb_event_base(),-1,0,dispatch_callback,ev) == 0,
+            "event_assign failure");
+  apr_pool_cleanup_register(pool,ev,(cleanup_fn)aeb_event_cleanup,
+                                          apr_pool_cleanup_null);
+  return ev;
 }
 
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t *pool,
                                           aeb_event_callback_fn callback,
-                                          const apr_pollfd_t *descriptor,
+                                          const apr_pollfd_t *desc,
                                           apr_interval_time_t *timeout,
                                           aeb_event_t **ev)
 {
   aeb_event_t *event;
   AEB_ASSERT(ev != NULL,"null event");
 
-  event = apr_palloc(pool,sizeof(struct aeb_event));
-  AEB_ASSERT(event != NULL,"apr_pcalloc failure");
-  event->pool = pool;
-  event->associated_pool = NULL;
-  event->descriptor = descriptor;
-  event->flags = 0;
-  memset(&event->timeout,0,sizeof(event->timeout));
-  if (timeout) {
-    memcpy(&event->timeout,timeout,sizeof(apr_interval_time_t));
-    event->flags |= AEB_EVENT_HAS_TIMEOUT;
+  event = aeb_event_new(pool,callback,timeout);
+  if(desc) {
+    event->type = AEB_DESCRIPTOR_EVENT;
+    AEB_DESCRIPTOR_EVENT_DATA(event) = desc;
   }
-  memset(&event->event,0,sizeof(event->event));
-  apr_pool_cleanup_register(pool,event,(cleanup_fn)aeb_event_cleanup,
-                                               apr_pool_cleanup_null);
+  event->flags = 0;
 
-  if(descriptor && descriptor->p && descriptor->p != pool) {
-    apr_pool_cleanup_register(descriptor->p,&event->descriptor,
+  if(desc && desc->p && desc->p != pool) {
+    apr_pool_cleanup_register(desc->p,&AEB_DESCRIPTOR_EVENT_DATA(event),
                               aeb_indirect_wipe,
                               apr_pool_cleanup_null);
-    apr_pool_cleanup_register(descriptor->p,event,
+    apr_pool_cleanup_register(desc->p,event,
                               (cleanup_fn)aeb_event_cleanup,
                               apr_pool_cleanup_null);
   }
@@ -120,18 +159,26 @@ AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd
   apr_uint16_t flags;
   AEB_ASSERT(ev != NULL,"null event");
 
-  flags = ev->flags;
-  if(ev->descriptor && ev->descriptor->p &&
-     (!desc || ev->descriptor->p != desc->p))
-    apr_pool_cleanup_kill(ev->descriptor->p,ev,(cleanup_fn)aeb_event_cleanup);
+  if(ev->type != AEB_DESCRIPTOR_EVENT && !AEB_EVENT_IS_NULL(ev))
+    return APR_EINVAL;
 
-  if(ev->descriptor && ev->descriptor->p && desc != ev->descriptor)
-    apr_pool_cleanup_kill(ev->descriptor->p,&ev->descriptor,aeb_indirect_wipe);
+  flags = ev->flags;
+  if(AEB_DESCRIPTOR_EVENT_INFO(ev) && AEB_DESCRIPTOR_EVENT_DATA(ev)->p) {
+    if(!desc || AEB_DESCRIPTOR_EVENT_DATA(ev)->p != desc->p)
+      apr_pool_cleanup_kill(AEB_DESCRIPTOR_EVENT_DATA(ev)->p,
+                            ev,(cleanup_fn)aeb_event_cleanup);
+
+    if(desc != AEB_DESCRIPTOR_EVENT_DATA(ev))
+      apr_pool_cleanup_kill(AEB_DESCRIPTOR_EVENT_DATA(ev)->p,
+                            &AEB_DESCRIPTOR_EVENT_DATA(ev),
+                            aeb_indirect_wipe);
+  }
 
   if (flags & AEB_EVENT_ADDED)
     internal_event_del(ev);
 
-  ev->descriptor = desc;
+  ev->type = AEB_DESCRIPTOR_EVENT;
+  AEB_DESCRIPTOR_EVENT_DATA(ev) = desc;
   if(desc) {
     if(desc->p && desc->p != ev->pool) {
       apr_pool_cleanup_register(desc->p,ev,
@@ -192,4 +239,26 @@ AEB_API(apr_status_t) aeb_event_del(aeb_event_t *ev)
     internal_event_del(ev);
 
   return APR_SUCCESS;
+}
+
+/* Assign opaque user-defined context which will be passed to the callback */
+AEB_API(apr_status_t) aeb_event_user_context_set(aeb_event_t *ev, void *context)
+{
+  AEB_ASSERT(ev != NULL,"null event");
+
+  ev->user_context = context;
+  return APR_SUCCESS;
+}
+
+AEB_API(apr_status_t) aeb_event_userdata_set(const void *data, const char *key,
+                                             apr_status_t (*cleanup)(void*),
+                                             aeb_event_t *ev)
+{
+  return apr_pool_userdata_set(data,key,cleanup,ev->pool);
+}
+
+AEB_API(apr_status_t) aeb_event_userdata_get(void **data, const char *key,
+                                             aeb_event_t *ev)
+{
+  return apr_pool_userdata_get(data,key,ev->pool);
 }

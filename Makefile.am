@@ -32,18 +32,23 @@ libaeb_la_includedir = $(includedir)/apr_event_bridge
 libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_version.h \
                             $(AEBINC)/libaeb_config.h \
-                            $(AEBINC)/libaeb_assert.h
+                            $(AEBINC)/libaeb_assert.h \
+                            $(AEBINC)/libaeb_event_types.h \
+                            $(AEBINC)/libaeb_event_info.h
 
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
 
 libcompat_la_SOURCES = lib/stub.c include/compat.h
 libcompat_la_LIBADD = @LTLIBOBJS@
 
-libaeb_la_SOURCES = include/internal.h include/compat.h \
+libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
+                    include/internal.h include/compat.h include/event_types.h \
                     include/util.h src/util.c \
                     include/weakref.h src/weakref.c \
                     src/base.c \
-                    src/event.c
+                    src/event.c src/event_info.c \
+                    src/timers.c
+
 libaeb_la_LIBADD = libcompat.la
 
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)

@@ -1,6 +1,8 @@
 #include "internal.h"
 #include "util.h"
 
+#include <apr_errno.h>
+
 static apr_pool_t *error_pool = NULL;
 static apr_file_t *aeb_ferror = NULL;
 
@@ -24,6 +26,17 @@ static inline apr_pool_t *_access_error_pool(int ref, int clear)
             error_pool_count > 10 && error_pool_refcount == 0)
     apr_pool_clear(error_pool);
   return error_pool;
+}
+
+AEB_INTERNAL(const char *) aeb_errorstr(apr_status_t st, apr_pool_t *pool)
+{
+  char buf[AEB_BUFSIZE] = "";
+  ASSERT(pool != NULL);
+
+  ASSERT(apr_strerror(st,buf,sizeof(buf)-1) != NULL);
+  buf[sizeof(buf)-1] = '\0';
+
+  return apr_pstrdup(pool,buf);
 }
 
 AEB_INTERNAL(apr_status_t) aeb_indirect_wipe(void *data)

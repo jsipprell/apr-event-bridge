@@ -106,6 +106,16 @@
 #define APR_ARRAY_IDX(ary,i,type) (((type *)(ary)->elts)[i])
 #endif
 
+/* shared common flags */
+typedef enum {
+  aeb_flag_timeout = EV_TIMEOUT << 8,
+#define AEB_FLAG_TIMEOUT aeb_flag_timeout
+  aeb_flag_persist = EV_PERSIST << 8,
+#define AEB_FLAG_PERSIST aeb_flag_persist
+  aeb_flag_edge_triggered = EV_ET << 8
+#define AEB_FLAG_EDGE_TRIGGERED aeb_flag_edge_triggered
+} aeb_flag_t;
+
 /* common types */
 typedef void aeb_context_t;
 typedef struct aeb_event aeb_event_t;
@@ -120,6 +130,9 @@ typedef apr_status_t (*aeb_event_callback_fn)(apr_pool_t*,const aeb_event_info_t
 #else
 #define AEB_BUFSIZE 4096
 #endif
+
+/* Other prototypes */
+#include <libaeb_event_types.h>
 
 /* event api */
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
@@ -136,10 +149,24 @@ AEB_API(apr_status_t) aeb_event_associate_pool(aeb_event_t*, apr_pool_t*);
 AEB_API(apr_status_t) aeb_event_add(aeb_event_t*);
 AEB_API(apr_status_t) aeb_event_del(aeb_event_t*);
 AEB_API(apr_uint16_t) aeb_event_is_active(aeb_event_t*);
+/* Set an opaque user context that will be passed to callbacks */
+AEB_API(apr_status_t) aeb_event_user_context_set(aeb_event_t*,void*);
+/* Userdata management */
+AEB_API(apr_status_t) aeb_event_userdata_set(const void*,const char *,
+                                             apr_status_t (*cleanup)(void*),
+                                             aeb_event_t*);
+AEB_API(apr_status_t) aeb_event_userdata_get(void**,const char*,aeb_event_t*);
 
 /* event info api */
 AEB_API(aeb_event_t) *aeb_event_info_event_get(const aeb_event_info_t*);
 AEB_API(apr_int16_t) *aeb_event_info_events(const aeb_event_info_t*);
 AEB_API(const apr_pollfd_t*) aeb_event_info_descriptor(const aeb_event_info_t*);
+
+/* timer api */
+AEB_API(apr_status_t) aeb_timer_create_ex(apr_pool_t*,
+                                          aeb_event_callback_fn,
+                                          apr_uint16_t flags,
+                                          apr_interval_time_t duration,
+                                          aeb_event_t**);
 
 #endif /* _LIBAEB_H */

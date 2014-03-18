@@ -149,17 +149,19 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(pkgconfigdir)" \
 	"$(DESTDIR)$(libaeb_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libaeb_static_la_DEPENDENCIES = libcompat.la
+am__objects_1 =
 am__dirstamp = $(am__leading_dot)dirstamp
-am__objects_1 = src/util.lo src/weakref.lo src/base.lo src/event.lo
-am_libaeb_static_la_OBJECTS = $(am__objects_1)
+am__objects_2 = $(am__objects_1) src/util.lo src/weakref.lo \
+	src/base.lo src/event.lo src/event_info.lo src/timers.lo
+am_libaeb_static_la_OBJECTS = $(am__objects_2)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 libaeb_la_DEPENDENCIES = libcompat.la
-am_libaeb_la_OBJECTS = src/util.lo src/weakref.lo src/base.lo \
-	src/event.lo
+am_libaeb_la_OBJECTS = $(am__objects_1) src/util.lo src/weakref.lo \
+	src/base.lo src/event.lo src/event_info.lo src/timers.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -459,16 +461,20 @@ libaeb_la_includedir = $(includedir)/apr_event_bridge
 libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_version.h \
                             $(AEBINC)/libaeb_config.h \
-                            $(AEBINC)/libaeb_assert.h
+                            $(AEBINC)/libaeb_assert.h \
+                            $(AEBINC)/libaeb_event_types.h \
+                            $(AEBINC)/libaeb_event_info.h
 
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
 libcompat_la_SOURCES = lib/stub.c include/compat.h
 libcompat_la_LIBADD = @LTLIBOBJS@
-libaeb_la_SOURCES = include/internal.h include/compat.h \
+libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
+                    include/internal.h include/compat.h include/event_types.h \
                     include/util.h src/util.c \
                     include/weakref.h src/weakref.c \
                     src/base.c \
-                    src/event.c
+                    src/event.c src/event_info.c \
+                    src/timers.c
 
 libaeb_la_LIBADD = libcompat.la
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
@@ -588,6 +594,8 @@ src/util.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/weakref.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/event_info.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/timers.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 libaeb-static.la: $(libaeb_static_la_OBJECTS) $(libaeb_static_la_DEPENDENCIES) $(EXTRA_libaeb_static_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libaeb_static_la_OBJECTS) $(libaeb_static_la_LIBADD) $(LIBS)
@@ -634,7 +642,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/stub.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/base.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event_info.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/timers.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/weakref.Plo@am__quote@
 

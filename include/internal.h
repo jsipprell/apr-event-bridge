@@ -39,9 +39,12 @@
   AEB_API(apr_pool_t*) aeb_##type##_pool_get(const aeb_##type##_t * type##object) \
     { return type##object->pool; }
 
+typedef apr_status_t (*cleanup_fn)(void*);
+
 #include "compat.h"
 #include "util.h"
-  
+#include "event_types.h"
+    
 typedef enum {
   aeb_event_added = 0x01,
 #define AEB_EVENT_ADDED aeb_event_added
@@ -49,6 +52,38 @@ typedef enum {
 #define AEB_EVENT_HAS_TIMEOUT aeb_event_has_timeout
 } aeb_event_flag_e;
 
+/* private event data structure */
+struct aeb_event {
+  apr_pool_t *pool;
+  apr_pool_t *associated_pool;
+  struct event *event;
+  aeb_event_callback_fn callback;
+  void *user_context;
+  apr_time_t timeout;
+  apr_uint16_t flags;
+
+  enum aeb_event_type_e type;
+  /* note, this union MUST have the same names as that found in the public
+   * struct aeb_event_info so that the AEB_*_EVENT_INFO macros will work on it.
+   */
+  union {
+    const void *data;
+    const void *reserved_data;
+    const apr_pollfd_t *descriptor_data;
+    const void *timer_data;
+    const void *signal_data;
+  } d;
+};
+
 AEB_DECL_INTERNAL(struct event_base*) aeb_event_base(void);
+AEB_DECL_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t*,aeb_event_callback_fn,
+                                              apr_interval_time_t*);
+AEB_DECL_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t*,
+                                                                 aeb_event_type_t,
+                                                                 const void*,
+                                                                 apr_uint16_t flags,
+                                                                 apr_pool_t*);
+#define aeb_event_info_new(ev,data,flags) \
+                aeb_event_info_new_ex((ev),aeb_event_type_null, (data), (flags), NULL)
 
 #endif /* _LIBAEB_INTERNAL_H */
