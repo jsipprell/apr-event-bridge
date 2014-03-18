@@ -1,6 +1,6 @@
 /* include/libaeb_config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to enable multi-threading support */
+/* Define to enable thread support */
 #undef AEB_USE_THREADS
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
@@ -32,6 +32,12 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <event2/thread.h> header file. */
+#undef HAVE_EVENT2_THREAD_H
+
+/* Define to 1 if you have the `event_set_mem_functions' function. */
+#undef HAVE_EVENT_SET_MEM_FUNCTIONS
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -103,6 +109,10 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* Define to the type of thread supported on your platform (pthreads, windows,
+   etc) */
+#undef PLATFORM_THREAD_TYPE
 
 /* Define to your C compiler's attribute for relaxing strict aliasing */
 #undef RELAX_STRICT_ALIASING_ATTRIBUTE

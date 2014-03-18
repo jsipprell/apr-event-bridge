@@ -1,4 +1,7 @@
 AC_INIT(apr_event_bridge,0.0.1)
+AC_COPYRIGHT([[Copyright 2014, Jesse Sipprell.
+All rights reserved.]])
+builtin(include, build/m4/aeb_args.m4)
 AC_CONFIG_AUX_DIR(build)
 AC_CONFIG_MACRO_DIR(build)
 AC_CONFIG_SRCDIR(src)
@@ -38,30 +41,25 @@ LIBAEB_INCLUDE=
 
 LIBAEB_VERSION="\"${LIBAEB_API_VERSION}.${LIBAEB_REVISION}\""
 
-libaeb_cf_debug=unset
 libaeb_cf_debugging_macro=no
 
-AC_ARG_ENABLE(debug,
+AEB_ARG_ENABLE(debug,
   AS_HELP_STRING([--enable-debug],
     [Enable runtime debugging]),
-    [libaeb_cf_debug="${enableval:-yes}"],[])
+    [unset],[yes no gdb])
 
-AC_ARG_ENABLE(debug-gdb,
-  AS_HELP_STRING([--enable-debug-gdb],
-    [Disable all optimization and output debug symbols compatible with gdb]),
-    [libaeb_cf_debug="gdb"],[])
+AEB_ARG_ENABLE(install-pc,
+  AS_HELP_STRING([--enable-install-pc],
+    [Install apr_event_bridge.pc file for use with pkg-config]),
+    [yes],[yes no])
 
-AC_ARG_ENABLE(install-pkgconfig,
-  AS_HELP_STRING([--disable-install-pkgconfig],
-    [Don't install apr_event_bridge.pc file for use with pkg-config]))
+AEB_ARG_ENABLE(threads,
+  [AS_HELP_STRING([--enable-threads],
+    [Enable thread support])],[auto],[yes no auto])
 
-AC_ARG_ENABLE(threading,
-  AS_HELP_STRING([--enable-threading],
-    [Enable thread support (require libevent_pthread and libapr threading support as well)]))
+AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$aeb_enable_install_pc" = x"yes" ])
 
-AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$enable_install_pkgconfig" != x"no" ])
-
-AS_IF([test x"$libaeb_cf_debug" = x"unset"],
+AS_IF([test x"$aeb_enable_debug" = x"unset"],
   [AM_SILENT_RULES([yes])],
   [enable_shared=no
    enable_static=yes
@@ -70,27 +68,19 @@ AS_IF([test x"$libaeb_cf_debug" = x"unset"],
 AS_IF([test x"$PLATFORM_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
 
-AS_CASE($libaeb_cf_debug,
+AS_CASE($aeb_enable_debug,
   [gdb],[CFLAGS="-ggdb3 -Wall"
          libaeb_cf_debugging_macro=yes],
   [yes],[CFLAGS="$CFLAGS${CFLAGS:+ }-g"
          libaeb_cf_debugging_macro=yes],
-  [unset],,
-  [
-    CFLAGS="$CFLAGS${CFLAGS:+ }-g${libaeb_cf_debug}"
-    libaeb_cf_debugging_macro=yes
-  ])
+  [no],,
+  [libaeb_cf_debugging_macro=yes])
 
 AS_IF([test x"$libaeb_cf_debugging_macro" = x"yes"],
   [AC_DEFINE([DEBUGGING],[1],[Define to enable extra debugging])])
 
 AEB_CHECK_GCC_VISIBILITY
 AEB_CHECK_ALIAS_ATTRIBUTE
-
-AS_IF([test x"$enable_threading" = x"yes"],
-  [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
-  [LIBEVENT_PKGCONFIG_NAME=libevent])
-PKG_CHECK_MODULES([LIBEVENT],[$LIBEVENT_PKGCONFIG_NAME])
 
 dnl we don't use pkg-config for this because it's difficult to precisely control
 dnl linkage of additional libs beyond apr/apr-util (ldap, etc) with pkg-config.
@@ -123,11 +113,21 @@ AS_IF([test x"$APR_LIBS" != x""],
 AS_IF([test x"$APR_UTIL_LIBS" != x""],
   [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$APR_UTIL_LIBS"],[])
 
-AS_IF([test x"$enable_threading" = x"yes"],
+AS_IF([test x"$aeb_enable_threads" != x"no"],
   [AEB_HAS_THREADS(
-     [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable multi-threading support])],
-     [AC_MSG_ERROR([Apache Portable Runtime not configured for multi-threading])]
-)])
+     [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable thread support])],
+     [
+      AS_VAR_IF([aeb_enable_threads],[auto],
+                [aeb_enable_threads=no
+                AC_MSG_WARN([Thread support disabled])],
+                [AC_MSG_ERROR([Apache Portable Runtime not configured for thread support!])])
+     ])dnl
+])
+
+AS_IF([test x"$aeb_enable_threads" != x"no"],
+  [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
+  [LIBEVENT_PKGCONFIG_NAME=libevent])
+PKG_CHECK_MODULES([LIBEVENT],[$LIBEVENT_PKGCONFIG_NAME])
 
 AS_IF([test x"$LIBEVENT_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_CFLAGS"
@@ -146,18 +146,28 @@ AS_IF([test x"$LIBEVENT_PTHREADS_LIBS" != x""],
 dnl Start standard autoconf stuff
 AC_STDC_HEADERS
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([signal.h assert.h])
+AC_CHECK_HEADERS([signal.h assert.h event2/thread.h])
 AC_FUNC_ALLOCA
 AC_FUNC_STRTOLD
 AC_CHECK_FUNCS_ONCE([strtod])
 
+libaeb_main_save_LIBS="$LIBS"
+LIBS="$LIBS${LIBS:+ }$LIBAEB_LIBS"
+AC_CHECK_FUNCS([event_set_mem_functions],[],
+  [AC_MSG_FAILURE([Your libevent is too old or was configured with --disable-malloc-replacement])])
+
 AS_IF([test x"$ac_cv_func_alloca_works" != x"yes"],
   [AC_MSG_ERROR([this system does not support alloca(), yet a compatible implementation is not included with this distribution])])
 
-libaeb_save_LIBS="$LIBS"
-LIBS="$LIBS${LIBS:+ }$LIBAEB_LIBS"
 AC_REPLACE_FUNCS([apr_table_clone apr_array_clear])
-LIBS="$libaeb_save_LIBS"
+LIBS="$libaeb_main_save_LIBS"
+
+AS_IF([test x"$aeb_enable_threads" != x"no"],
+  [AEB_EVENT_CHECK_THREADS(
+    [AC_DEFINE_UNQUOTED([PLATFORM_THREAD_TYPE],[["]$libevent_thread_type["]],
+        [Define to the type of thread supported on your platform (pthreads, windows, etc)])],
+    [AC_MSG_FAILURE([Your libevent is too old or not configured for threads support!])])
+  ])
 
 AC_RUN_IFELSE(
   [AC_LANG_PROGRAM([[#include <apr_version.h>
