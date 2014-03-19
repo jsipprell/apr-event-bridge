@@ -134,6 +134,41 @@ typedef apr_status_t (*aeb_event_callback_fn)(apr_pool_t*,const aeb_event_info_t
 /* Other prototypes */
 #include <libaeb_event_types.h>
 
+
+/* ===  MAIN API === */
+
+/* dispatch loop api */
+
+/* This is the main event dispatch loop function. Calling this will result
+ * in events for the current thread being dispatched until duration time
+ * expires. If duration is NULL the loop will run indefinitely.
+ * If the duration timer expires APR_TIMEUP is returned.
+ *
+ * In all cases where duration is not NULL it will be reset to the total
+ * elapsed time right before this call returns.
+ *
+ * If the input contents of duration is APR_TIME_C(-1) no timeout will occur
+ * but duration will still be set on exit.
+ *
+ * This function may return other values if the event loop is terminated
+ * in other ways (such as via aeb_event_loop_terminate()).
+ */
+AEB_API(apr_status_t) aeb_event_loop(apr_interval_time_t *duration);
+
+/* Run the event loop N times. Each loop will block until at least one
+ * event occurs. Duration will be set if non NULL but is not used to
+ * limit the maximum run time.
+ */
+AEB_API(apr_status_t) aeb_event_loopn(apr_ssize_t count,
+                                      apr_interval_time_t *duration);
+
+/* A non-blocking version of the event loop. This will handle queued events
+ * but never block. Duration will be set if non NULL but is not used
+ * to limit the maximum run time. May return APR_EWOULDBLOCK or
+ * APR_SUCCESS.
+ */
+AEB_API(apr_status_t) aeb_event_loop_try(apr_interval_time_t *duration);
+
 /* event api */
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
                                             aeb_event_callback_fn,
@@ -157,6 +192,20 @@ AEB_API(apr_status_t) aeb_event_userdata_set(const void*,const char *,
                                              aeb_event_t*);
 AEB_API(apr_status_t) aeb_event_userdata_get(void**,const char*,aeb_event_t*);
 
+/* NOTE: aeb_event_clone() "moves" an event to a new pool in a copy-on-write fashion.
+ * This works by way of simply using the same reference to the original libevent
+ * but also adding a cleanup handler on the old event's pool such that if it goes
+ * away a brand new event will be created in it's place and all attributes of
+ * the old will then be compied to the new (again this only happens *immediately*)
+ * before the old event's memory pool is destroyed.
+ *
+ * This can be useful for situations like a thread pool handler picking up an event
+ * from a different thread and calling aeb_event_clone() to take temporary "ownership"
+ * of a CoW clone of it.
+ */
+
+AEB_API(apr_status_t) aeb_event_clone(apr_pool_t*, const aeb_event_t *oldev,
+                                                   aeb_event_t **newev);
 /* event info api */
 AEB_API(aeb_event_t) *aeb_event_info_event_get(const aeb_event_info_t*);
 AEB_API(apr_int16_t) *aeb_event_info_events(const aeb_event_info_t*);

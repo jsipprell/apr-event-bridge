@@ -152,7 +152,8 @@ libaeb_static_la_DEPENDENCIES = libcompat.la
 am__objects_1 =
 am__dirstamp = $(am__leading_dot)dirstamp
 am__objects_2 = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/base.lo src/event.lo src/event_info.lo src/timers.lo
+	src/base.lo src/event.lo src/event_info.lo src/timers.lo \
+	src/loop.lo
 am_libaeb_static_la_OBJECTS = $(am__objects_2)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -161,7 +162,8 @@ am__v_lt_0 = --silent
 am__v_lt_1 = 
 libaeb_la_DEPENDENCIES = libcompat.la
 am_libaeb_la_OBJECTS = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/base.lo src/event.lo src/event_info.lo src/timers.lo
+	src/base.lo src/event.lo src/event_info.lo src/timers.lo \
+	src/loop.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -474,7 +476,8 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/weakref.h src/weakref.c \
                     src/base.c \
                     src/event.c src/event_info.c \
-                    src/timers.c
+                    src/timers.c \
+                    src/loop.c
 
 libaeb_la_LIBADD = libcompat.la
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
@@ -596,6 +599,7 @@ src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event_info.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/timers.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/loop.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 libaeb-static.la: $(libaeb_static_la_OBJECTS) $(libaeb_static_la_DEPENDENCIES) $(EXTRA_libaeb_static_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libaeb_static_la_OBJECTS) $(libaeb_static_la_LIBADD) $(LIBS)
@@ -643,6 +647,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/base.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event_info.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/loop.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/timers.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Plo@am__quote@

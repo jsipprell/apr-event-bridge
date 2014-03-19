@@ -2,6 +2,7 @@
 
 AEB_POOL_IMPLEMENT_ACCESSOR(event)
 
+static void dispatch_callback(evutil_socket_t, short, void*);
 static apr_status_t *aeb_event_cleanup(aeb_event_t *ev)
 {
   if(ev->flags & AEB_EVENT_ADDED) {
@@ -23,7 +24,7 @@ static void internal_event_add(aeb_event_t *ev)
                "apr_os_imp_time_get failure");
   }
   event_add(ev->event,tv);
-  ev->flags |= AEB_EVENT_ADDED;  
+  ev->flags |= AEB_EVENT_ADDED;
 }
 
 static void internal_event_del(aeb_event_t *ev)
@@ -59,12 +60,70 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
     apr_pool_destroy(pool);
 }
 
+static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd_t *d)
+{
+  evutil_socket_t fd = -1;
+  apr_status_t st = APR_SUCCESS;
+  short eventset = 0;
+
+  if(!d)
+    d = AEB_DESCRIPTOR_EVENT_INFO(ev);
+
+  if (d != NULL) {
+    const apr_descriptor *desc = &d->desc;
+
+    if(d->client_data && ev->user_context == NULL)
+      ev->user_context = d->client_data;
+    if(d->reqevents & APR_POLLIN)
+      eventset |= EV_READ;
+    if(d->reqevents & APR_POLLOUT)
+      eventset |= EV_WRITE;
+
+    switch(d->desc_type) {
+      case APR_POLL_FILE:
+        st = apr_os_file_get(&fd,desc->f);
+        break;
+      case APR_POLL_SOCKET:
+        st = apr_os_sock_get(&fd,desc->s);
+        break;
+      default:
+        st = APR_EINVAL;
+        break;
+    }
+
+  }
+
+  if(st == APR_SUCCESS) {
+    struct event_base *base;
+    event_callback_fn callback;
+    void *callback_arg;
+
+    event_get_assignment(ev->event,&base,NULL,NULL,&callback,&callback_arg);
+    if(callback == NULL)
+      callback = dispatch_callback;
+    if(!callback_arg)
+      callback_arg = ev->user_context;
+
+    if(ev->flags & 0xff00)
+      eventset |= (ev->flags >> 8);
+    ASSERT(event_assign(ev->event,base,fd,eventset,callback,callback_arg) == 0);
+  }
+
+  return st;
+}
+
+static inline struct event *pcalloc_libevent(apr_pool_t *pool)
+{
+  apr_size_t event_sz = event_get_struct_event_size();
+  return (struct event*)apr_pcalloc(pool,event_sz < sizeof(struct event) ?
+                                   sizeof(struct event) : event_sz);
+}
+
 AEB_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t *pool,
                                          aeb_event_callback_fn callback,
                                          apr_interval_time_t *timeout)
 {
   aeb_event_t *ev;
-  apr_size_t event_sz = event_get_struct_event_size();
 
   ASSERT(pool != NULL);
   ASSERT((ev = apr_palloc(pool,sizeof(struct aeb_event))) != NULL);
@@ -79,14 +138,101 @@ AEB_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t *pool,
     memcpy(&ev->timeout,timeout,sizeof(apr_interval_time_t));
     ev->flags |= AEB_EVENT_HAS_TIMEOUT;
   }
-
-  ev->event = apr_palloc(ev->pool,event_sz < sizeof(struct event) ? sizeof(struct event) : event_sz);
+  ev->source = NULL;
+  ev->event = pcalloc_libevent(ev->pool);
   AEB_ASSERT(ev->event,"apr_palloc failed while allocating struct event");
   AEB_ASSERT(event_assign(ev->event,aeb_event_base(),-1,0,dispatch_callback,ev) == 0,
             "event_assign failure");
   apr_pool_cleanup_register(pool,ev,(cleanup_fn)aeb_event_cleanup,
                                           apr_pool_cleanup_null);
   return ev;
+}
+
+static apr_status_t aeb_event_clone_cow(void *data)
+{
+  aeb_event_t *ev = (aeb_event_t*)data;
+  struct event *oldevent;
+  struct event_base *base;
+  evutil_socket_t sock;
+  short eventset;
+  event_callback_fn callback;
+  void *callback_arg;
+
+  apr_uint16_t flags;
+
+  ASSERT(ev != NULL);
+  flags = ev->flags;
+  ASSERT(ev->event != NULL);
+
+  if (flags & AEB_EVENT_ADDED)
+    internal_event_del(ev);
+
+  oldevent = ev->event;
+  event_get_assignment(oldevent,&base,&sock,&eventset,&callback,&callback_arg);
+
+  if(ev->source) {
+    ev->event = pcalloc_libevent(ev->pool);
+    ASSERT(ev->event != NULL);
+    ev->source = NULL;
+  }
+
+  if(ev->event && oldevent != ev->event) {
+    ASSERT(event_assign(ev->event,base,sock,eventset,callback,callback_arg) == 0);
+  }
+
+  if (flags & AEB_EVENT_ADDED)
+    internal_event_add(ev);
+
+  return APR_SUCCESS;
+}
+
+static apr_status_t aeb_event_clone_cow_remove(void *data)
+{
+  aeb_event_t *ev = (aeb_event_t*)data;
+
+  ASSERT(ev != NULL && ev->pool != NULL);
+  apr_pool_cleanup_kill(ev->pool,ev,aeb_event_clone_cow);
+  return APR_SUCCESS;
+}
+
+AEB_API(apr_status_t) aeb_event_clone(apr_pool_t *pool,
+                                      const aeb_event_t *ev,
+                                      aeb_event_t **evp)
+{
+  aeb_event_t *newev;
+
+  if(!pool || !ev)
+    return APR_EINVAL;
+
+  /* if it's already been cloned then make a copy of the clone, not this one */
+  while(ev->source != NULL)
+    ev = ev->source;
+
+  newev = apr_palloc(pool,sizeof(struct aeb_event));
+  ASSERT(newev != NULL);
+  newev->pool = pool;
+  newev->source = ev;
+  newev->callback = ev->callback;
+  newev->associated_pool = ev->associated_pool;
+  memcpy(&newev->timeout,&ev->timeout,sizeof(apr_interval_time_t));
+  newev->flags = ev->flags;
+  newev->type = ev->type;
+  memcpy(&newev->d,&ev->d,sizeof(ev->d));
+  newev->event = ev->event;
+
+  if(newev->event && pool != ev->pool) {
+    if(!apr_pool_is_ancestor(pool,ev->pool)) {
+      apr_pool_cleanup_register(ev->pool,newev,aeb_event_clone_cow,apr_pool_cleanup_null);
+      apr_pool_cleanup_register(pool,newev,aeb_event_clone_cow_remove,apr_pool_cleanup_null);
+    }
+  }
+
+  if(AEB_DESCRIPTOR_EVENT_INFO(newev) && AEB_DESCRIPTOR_EVENT_DATA(newev)->p)
+    apr_pool_cleanup_register(AEB_DESCRIPTOR_EVENT_DATA(newev)->p,newev,
+                              (cleanup_fn)aeb_event_cleanup,
+                              apr_pool_cleanup_null);
+
+  return APR_SUCCESS;
 }
 
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t *pool,
@@ -113,7 +259,9 @@ AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t *pool,
                               (cleanup_fn)aeb_event_cleanup,
                               apr_pool_cleanup_null);
   }
+  aeb_assign_from_descriptor(event,desc);
   *ev = event;
+
   return APR_SUCCESS;
 }
 
@@ -136,7 +284,7 @@ AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t *ev, apr_interval_time_t
   AEB_ASSERT(ev != NULL,"null event");
 
   flags = ev->flags;
-  if((!t && (flags & AEB_EVENT_HAS_TIMEOUT)) || (t && !(flags & AEB_EVENT_HAS_TIMEOUT)) 
+  if((!t && (flags & AEB_EVENT_HAS_TIMEOUT)) || (t && !(flags & AEB_EVENT_HAS_TIMEOUT))
                                              || (t && *t != ev->timeout))
     internal_event_del(ev);
 
@@ -185,7 +333,9 @@ AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd
                                 (cleanup_fn)aeb_event_cleanup,
                                 apr_pool_cleanup_null);
     }
-    if ((flags & AEB_EVENT_ADDED) && !(ev->flags & AEB_EVENT_ADDED))
+    if (aeb_assign_from_descriptor(ev,desc) == APR_SUCCESS &&
+                                            (flags & AEB_EVENT_ADDED) &&
+                                          !(ev->flags & AEB_EVENT_ADDED))
       internal_event_add(ev);
   }
 

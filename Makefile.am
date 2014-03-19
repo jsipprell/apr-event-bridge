@@ -47,7 +47,8 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/weakref.h src/weakref.c \
                     src/base.c \
                     src/event.c src/event_info.c \
-                    src/timers.c
+                    src/timers.c \
+                    src/loop.c
 
 libaeb_la_LIBADD = libcompat.la
 

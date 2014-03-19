@@ -5,6 +5,7 @@
 
 #define AEB_INFO_NAME(t) "AEB:event_info" APR_STRINGIFY(t)
 
+#if 0
 static inline const char *event_info_key(aeb_event_type_t evtype)
 {
   const char *name;
@@ -34,6 +35,7 @@ static inline const char *event_info_key(aeb_event_type_t evtype)
   }
   return name;
 }
+#endif
 
 AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
                                                             aeb_event_type_t evtype,
@@ -49,15 +51,19 @@ AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
   if(evtype == aeb_event_type_null)
     evtype = ev->type;
 
+#if 0
   if(pool == ev->pool)
     apr_pool_userdata_get((void**)&info,event_info_key(evtype),pool);
-
   if(info == NULL) {
+#endif
+
     ASSERT((info = apr_pcalloc(pool,sizeof(aeb_event_info_t))) != NULL);
     info->type = evtype;
+#if 0
     apr_pool_userdata_set(info,event_info_key(evtype),NULL,pool);
   } else
     info->type = evtype;
+#endif
 
   if(ev)
     info->event = ev;

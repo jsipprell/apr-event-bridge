@@ -73,6 +73,9 @@ struct aeb_event {
     const void *timer_data;
     const void *signal_data;
   } d;
+
+  /* Copy-on-Write clone source, NULL unless aeb_event_clone() has been called. */
+  const struct aeb_event *source;
 };
 
 AEB_DECL_INTERNAL(struct event_base*) aeb_event_base(void);
