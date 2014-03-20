@@ -1,2 +1,3 @@
-Apache Portable Runtime "glue" library intended to prevent an apr-style abstraction interface
-to libevent.
+An Apache Portable Runtime "glue" library intended to present an APR-style abstraction interface for event-driven I/O using libevent.
+
+apr-event-bridge is written in standard ISO/IEC 9899:2011 C.
