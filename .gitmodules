@@ -1,0 +1,4 @@
+[submodule "libs/libevent"]
+	path = libs/libevent
+	url = https://github.com/jsipprell/libevent.git
+	branch = stable-2.0
