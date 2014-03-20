@@ -25,14 +25,15 @@ typedef struct {
 
 static inline threadstate_t *STATE(void *data)
 {
+  apr_status_t st;
   threadstate_t *state = (threadstate_t*)data;
 
   assert(state != NULL);
   if(state->name == NULL) {
     const char *name = NULL;
-    assert(apr_thread_data_get((void**)&name,"thread_name",state->t) == APR_SUCCESS);
+    AEB_APR_ASSERT(apr_thread_data_get((void**)&name,"thread_name",state->t));
     if(name == NULL) {
-      assert(apr_pool_userdata_get((void**)&name,"thread_name",state->p) == APR_SUCCESS);
+      AEB_APR_ASSERT(apr_pool_userdata_get((void**)&name,"thread_name",state->p));
     }
     if(name)
       state->name = apr_psprintf(state->p,"[%s]",name);
@@ -40,20 +41,6 @@ static inline threadstate_t *STATE(void *data)
 
   assert(state->name != NULL);
   return state;
-}
-
-static const char *geterr(apr_status_t st, apr_pool_t *pool)
-{
-  static char buf[AEB_BUFSIZE];
-
-  buf[0] = '\0';
-  if(apr_strerror(st,buf,AEB_BUFSIZE-1) != NULL) {
-    buf[AEB_BUFSIZE-1] = '\0';
-    if(pool)
-      return apr_pstrdup(pool,buf);
-    return buf;
-  }
-  return NULL;
 }
 
 static apr_threadattr_t *new_threadattr(apr_pool_t *pool)
@@ -151,26 +138,26 @@ static apr_status_t debug_destroy_thread_pool(void *x)
 
 static void * APR_THREAD_FUNC test_thread_launcher(apr_thread_t *this, void *data)
 {
+  apr_status_t st;
   const char *name = (const char *)data;
   apr_pool_t *work_pool = NULL;
   void *rv;
 
   assert(name != NULL);
   if (apr_thread_data_get((void**)&work_pool,"thread_pool",this) != APR_SUCCESS || !work_pool) {
-    ASSERT(apr_pool_create(&work_pool,apr_thread_pool_get(this)) == APR_SUCCESS);
+    AEB_APR_ASSERT(apr_pool_create(&work_pool,apr_thread_pool_get(this)));
     printf("!!!! DEBUG: " HEXFMT ": new pool " HEXFMT " from " HEXFMT " !!\n",
            HEX(this),HEX(work_pool),HEX(apr_thread_pool_get(this)));
-    ASSERT(apr_thread_data_set(work_pool,"thread_pool",debug_release_thread_pool,this) == APR_SUCCESS);
+    AEB_APR_ASSERT(apr_thread_data_set(work_pool,"thread_pool",debug_release_thread_pool,this));
     apr_pool_cleanup_register(work_pool,work_pool,debug_destroy_thread_pool,
                               apr_pool_cleanup_null);
     apr_pool_cleanup_register(apr_thread_pool_get(this),apr_thread_pool_get(this),
                               debug_destroy_thread_pool,
                               apr_pool_cleanup_null);
   }
-  name = apr_pstrdup(work_pool,name);
-  assert(apr_pool_userdata_set(name,
-                                "thread_name",NULL,work_pool) == APR_SUCCESS);
-  assert(apr_thread_data_set((void*)name,"thread_name",NULL,this) == APR_SUCCESS);
+  ASSERT((name = apr_pstrdup(work_pool,name)) != NULL);
+  AEB_APR_ASSERT(apr_pool_userdata_set(name,"thread_name",NULL,work_pool));
+  AEB_APR_ASSERT(apr_thread_data_set((void*)name,"thread_name",NULL,this));
   rv = test_thread(this,work_pool);
   assert(apr_thread_data_set(NULL,"thread_name",NULL,this) == APR_SUCCESS);
   return rv;
@@ -289,7 +276,7 @@ static void test_aeb(void)
   fflush(stderr);
   rv = apr_thread_join(&st,t);
   if(rv != APR_SUCCESS)
-    printf("apr_thread_join: %s\n",geterr(rv,NULL));
+    printf("apr_thread_join: %s\n",aeb_errorstr(rv,pool));
   else
     printf("thread exited, status %u\n",(unsigned)st);
   apr_pool_destroy(pool);

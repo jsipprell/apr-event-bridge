@@ -35,6 +35,7 @@
 #undef AEB_API
 #define AEB_API(type) AEB_EXPORT type
 
+
 #define AEB_POOL_IMPLEMENT_ACCESSOR(type) \
   AEB_API(apr_pool_t*) aeb_##type##_pool_get(const aeb_##type##_t * type##object) \
     { return type##object->pool; }
@@ -44,7 +45,20 @@ typedef apr_status_t (*cleanup_fn)(void*);
 #include "compat.h"
 #include "util.h"
 #include "event_types.h"
-    
+
+/* Macro to call a func that returns apr_status_t and assert APR_SUCCESS.
+ * Relies on the automatic variable "st" prototyped as apr_status_t.
+ */
+#define AEB_APR_ASSERT(cond) AEB_ASSERTV((st = (cond)) != APR_SUCCESS,"%s",aeb_errorstr(st,NULL))
+/* Macro to call a func that should return 0 if successful, otherwise sets errno and returns -1 */
+#define AEB_ZASSERT(cond) AEB_ASSERTV((cond) != 0,"%s",aeb_errorstr(apr_get_os_error(),NULL))
+/* Macro to call a func that should return 0 if successful, otherwiser return apr_status_t
+ * based on errno. */
+#define AEB_ERRNO_CALL(c) if((c) != 0) return apr_get_os_error()
+#define AEB_APR_CALL(c) if((st = (c)) != APR_SUCCESS) return st;
+/* Save as above, but operate as an assertion and return a user specified apr_status_t */
+#define AEB_APR_CALL_EX(cond,errcode) if(!(cond)) return (errcode)
+
 typedef enum {
   aeb_event_added = 0x01,
 #define AEB_EVENT_ADDED aeb_event_added

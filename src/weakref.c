@@ -177,10 +177,10 @@ AEB_INTERNAL(void*) aeb_weakref_consume(aeb_weakref_t *i)
 
 AEB_INTERNAL(aeb_weakref_t*) aeb_weakref_make(void *ctx, apr_pool_t *binding)
 {
-  apr_status_t st = APR_SUCCESS;
   struct aeb_weakref *i = NULL;
 
 #ifdef AEB_USE_THREADS
+  apr_status_t st = APR_SUCCESS;
   if(global_weakref_mutex == NULL)
     init_weakrefs();
 

@@ -17,9 +17,9 @@ static apr_hash_t *aeb_base_registry = NULL;
 static apr_thread_mutex_t *registry_mutex = NULL;
 
 #define LOCK_BASE_REGISTRY AEB_ASSERT(apr_thread_mutex_lock(registry_mutex) == APR_SUCCESS, \
-                                      "registry_mutex")
+                                      "cannot lock registry_mutex")
 #define UNLOCK_BASE_REGISTRY AEB_ASSERT(apr_thread_mutex_unlock(registry_mutex) == APR_SUCCESS, \
-                                      "registry_mutex")
+                                      "cannot unlock registry_mutex")
 #else /* !AEB_USE_THREADS */
 
 static struct event_base *base = NULL;
@@ -31,13 +31,12 @@ static apr_pool_t *aeb_base_pool = NULL;
 #ifdef AEB_USE_THREADS
 static apr_pool_t *get_thread_pool(void)
 {
+  apr_status_t st;
   apr_pool_t *pool = NULL;
 
   if (apr_threadkey_private_get((void**)&pool,aeb_pool_thread_key) != APR_SUCCESS || pool == NULL) {
-    AEB_ASSERT(apr_pool_create(&pool,NULL) == APR_SUCCESS,
-               "apr_pool_create failure");
-    AEB_ASSERT(apr_threadkey_private_set(pool,aeb_pool_thread_key) == APR_SUCCESS,
-               "apr_threadkey_private_set (pool) failure");
+    AEB_APR_ASSERT(apr_pool_create(&pool,NULL));
+    AEB_APR_ASSERT(apr_threadkey_private_set(pool,aeb_pool_thread_key));
   }
 
   return pool;
@@ -45,6 +44,7 @@ static apr_pool_t *get_thread_pool(void)
 
 static apr_thread_t *get_thread(apr_pool_t *pool)
 {
+  apr_status_t st;
   apr_os_thread_t ost;
   apr_thread_t *t = NULL;
 
@@ -52,8 +52,8 @@ static apr_thread_t *get_thread(apr_pool_t *pool)
     if (pool == NULL)
       pool = get_thread_pool();
     ost = apr_os_thread_current();
-    AEB_ASSERT(apr_os_thread_put(&t,&ost,pool) == APR_SUCCESS,"apr_os_thread_put failure");
-    AEB_ASSERT(t != NULL,"null thread");
+    AEB_APR_ASSERT(apr_os_thread_put(&t,&ost,pool));
+    ASSERT(t != NULL);
   }
 
   return t;
@@ -66,7 +66,7 @@ static apr_status_t unregister_thread_base(void *data)
   apr_pool_t *pool = apr_hash_pool_get(aeb_base_registry);
 
   apr_os_thread_put(&t,key,pool);
-  AEB_ASSERT(key != NULL,"invalid thread");
+  ASSERT(key != NULL);
   LOCK_BASE_REGISTRY;
   apr_hash_set(aeb_base_registry,key,sizeof(apr_os_thread_t),NULL);
 #if 1
@@ -79,13 +79,14 @@ static apr_status_t unregister_thread_base(void *data)
 
 static void register_thread_base(apr_thread_t *t,struct event_base *base, apr_pool_t *pool)
 {
+  apr_status_t st;
   apr_os_thread_t *key,*ost;
   if (!pool)
     pool = apr_thread_pool_get(t);
 
-  AEB_ASSERT(apr_os_thread_get(&ost,t) == APR_SUCCESS,"apr_os_thread_get");
+  AEB_APR_ASSERT(apr_os_thread_get(&ost,t));
   key = apr_pmemdup(pool,ost,sizeof(apr_os_thread_t));
-  AEB_ASSERT(key != NULL,"apr_pmemdup");
+  ASSERT(key != NULL);
   LOCK_BASE_REGISTRY;
   apr_hash_set(aeb_base_registry,key,sizeof(apr_os_thread_t),base);
 
@@ -99,11 +100,12 @@ static void register_thread_base(apr_thread_t *t,struct event_base *base, apr_po
 
 static struct event_base *lookup_thread_base(apr_thread_t *t)
 {
+  apr_status_t st;
   struct event_base *base;
   apr_os_thread_t *key;
   if (t == NULL)
     t = get_thread(NULL);
-  AEB_ASSERT(apr_os_thread_get(&key,t) == APR_SUCCESS,"apr_os_thread_get");
+  AEB_APR_ASSERT(apr_os_thread_get(&key,t));
   LOCK_BASE_REGISTRY;
   base = apr_hash_get(aeb_base_registry,key,sizeof(apr_os_thread_t));
   UNLOCK_BASE_REGISTRY;
@@ -227,7 +229,7 @@ static void thread_died(void *base)
 
 static void destroy_thread_pool(void *pool)
 {
-  AEB_ASSERT(pool != NULL,"null pool");
+  ASSERT(pool != NULL);
 
 #if 0
   fprintf(stderr,"destroying apr pool (" HEXFMT ") after thread death\n",HEX(pool));
@@ -237,16 +239,19 @@ static void destroy_thread_pool(void *pool)
 
 static apr_status_t reinit_event_base(void *data)
 {
+  apr_status_t st = APR_SUCCESS;
   struct event_base *base = (struct event_base*)data;
 
-  AEB_ASSERT(base != NULL,"null event_base in reinit_event_base");
-  AEB_ASSERT(event_reinit(base) == 0,"could not re-add all events to event base");
+  ASSERT(base != NULL);
+  AEB_ERRNO_CALL(event_reinit(base));
   fprintf(stderr,"reinit base " HEXFMT "\n",HEX(base));
-  return APR_SUCCESS;
+  return st;
 }
 
 static void init_aeb_threading(void)
 {
+  apr_status_t st;
+
 #ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
   evthread_use_pthreads();
 #elif defined(EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED)
@@ -254,41 +259,32 @@ static void init_aeb_threading(void)
 #endif
 
   if(aeb_base_pool == NULL) {
-    AEB_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool) == APR_SUCCESS,
-               "apr_pool_create_unmanaged failure");
+    AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
   }
-  AEB_ASSERT(apr_threadkey_private_create(&aeb_base_thread_key,
-                NULL, /* pool cleanup below takes care of this for us */
-                aeb_base_pool) == APR_SUCCESS,
-             "apr_threadkey_private_create failure");
-  AEB_ASSERT(apr_threadkey_private_create(&aeb_pool_thread_key,
-                destroy_thread_pool,
-                aeb_base_pool) == APR_SUCCESS,
-            "apr_threadkey_private_create failed (aeb_pool_thread_key)");
-  AEB_ASSERT(apr_threadkey_private_create(&aeb_thread_key,
-                NULL,
-                aeb_base_pool) == APR_SUCCESS,
-            "apr_threadkey_private_create_failed (aeb_thread_key)");
-  AEB_ASSERT(aeb_base_thread_key != NULL,"aeb_base_thread_key should not be NULL");
-  AEB_ASSERT(aeb_pool_thread_key != NULL,"aeb_pool_thread_key should not be NULL");
-  AEB_ASSERT(aeb_thread_key != NULL,"aeb_thread_key should not be NULL");
+  AEB_APR_ASSERT(apr_threadkey_private_create(&aeb_base_thread_key,NULL,aeb_base_pool));
+  /* pool cleanup below takes care of this for us */
+  AEB_APR_ASSERT(apr_threadkey_private_create(&aeb_pool_thread_key, destroy_thread_pool,
+                aeb_base_pool));
+  AEB_APR_ASSERT(apr_threadkey_private_create(&aeb_thread_key, NULL,
+                aeb_base_pool));
+  ASSERT(aeb_base_thread_key != NULL);
+  ASSERT(aeb_pool_thread_key != NULL);
+  ASSERT(aeb_thread_key != NULL);
 
-  AEB_ASSERT(apr_thread_mutex_create(&registry_mutex,APR_THREAD_MUTEX_DEFAULT,aeb_base_pool) == APR_SUCCESS,
-             "apr_thread_mutex_create failure");
-  AEB_ASSERT(apr_thread_mutex_lock(registry_mutex) == APR_SUCCESS,
-              "apr_thread_mutex_lock");
-  AEB_ASSERT((aeb_base_registry = apr_hash_make(aeb_base_pool)) != NULL,
-            "apr_hash_mask failure");
+  AEB_APR_ASSERT(apr_thread_mutex_create(&registry_mutex,APR_THREAD_MUTEX_DEFAULT,
+                 aeb_base_pool));
+  AEB_APR_ASSERT(apr_thread_mutex_lock(registry_mutex));
+  ASSERT((aeb_base_registry = apr_hash_make(aeb_base_pool)) != NULL);
   event_set_mem_functions(aeb_event_malloc,aeb_event_realloc,aeb_event_free);
-  AEB_ASSERT(apr_thread_mutex_unlock(registry_mutex) == APR_SUCCESS,
-             "apr_thread_mutex_unlock");
+  AEB_APR_ASSERT(apr_thread_mutex_unlock(registry_mutex));
 }
 #else
 static void init_aeb_non_threaded(void)
 {
+  apr_status_t st;
+
   if(aeb_base_pool == NULL) {
-    AEB_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool) == APR_SUCCESS,
-               "apr_pool_create_unmanaged failed");
+    AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
     event_set_mem_functions(aeb_event_malloc,aeb_event_realloc,aeb_event_free);
   }
 }
@@ -302,7 +298,7 @@ static void init_aeb_non_threaded(void)
  */
 AEB_INTERNAL(apr_status_t) aeb_thread_event_base_get(apr_thread_t *t, struct event_base **base)
 {
-  AEB_ASSERT(base != NULL,"base");
+  ASSERT(base != NULL);
 #ifdef AEB_USE_THREADS
   if (t == NULL) {
 #else
@@ -318,47 +314,40 @@ AEB_INTERNAL(apr_status_t) aeb_thread_event_base_get(apr_thread_t *t, struct eve
 AEB_INTERNAL(struct event_base*) aeb_event_base(void)
 {
 #ifdef AEB_USE_THREADS
+  apr_status_t st;
   struct event_base *base = NULL;
   if(thread_key_init_once == NULL) {
-    AEB_ASSERT(aeb_base_pool == NULL, "aeb_base_pool should be null");
-
-    AEB_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool) == APR_SUCCESS,
-               "apr_pool_create_unmanaged failure");
-
-    AEB_ASSERT(apr_thread_once_init(&thread_key_init_once,aeb_base_pool) == APR_SUCCESS,
-               "apr_thread_once_init failure");
+    ASSERT(aeb_base_pool == NULL);
+    AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
+    AEB_APR_ASSERT(apr_thread_once_init(&thread_key_init_once,aeb_base_pool));
   }
 
-  AEB_ASSERT(apr_thread_once(thread_key_init_once,init_aeb_threading) == APR_SUCCESS,
-             "apr_thread_once failure (init_aeb_threading)");
-  AEB_ASSERT(aeb_base_thread_key != NULL,"aeb_base_thread_key is null");
-  AEB_ASSERT(aeb_thread_key != NULL,"aeb_thread_key is null");
+  AEB_APR_ASSERT(apr_thread_once(thread_key_init_once,init_aeb_threading));
+  ASSERT(aeb_base_thread_key != NULL);
+  ASSERT(aeb_thread_key != NULL);
 
   if (apr_threadkey_private_get((void**)&base,aeb_base_thread_key) != APR_SUCCESS || base == NULL) {
     apr_pool_t *pool;
     apr_thread_t *thread;
 
     /* NOTE: pool is not created until first allocation actually performed */
-    AEB_ASSERT((base = event_base_new()) != NULL,"event_base_new returned null");
-    printf("CREATE EVENT BASE " HEXFMT "\n",HEX(base));
+    ASSERT((base = event_base_new()) != NULL);
     pool = get_thread_pool();
     ASSERT(pool != NULL);
     thread = get_thread(pool);
     apr_pool_cleanup_register(pool,base,
                               cleanup_event_base,
                               reinit_event_base);
-    AEB_ASSERT(apr_threadkey_private_set(base,aeb_base_thread_key) == APR_SUCCESS,
-              "apr_threadkey_private_set failure (aeb_base_thread_key)");
-    AEB_ASSERT(apr_threadkey_private_set(thread,aeb_thread_key) == APR_SUCCESS,
-              "apr_threadkey_private_set failured (aeb_thread_key)");
+    AEB_APR_ASSERT(apr_threadkey_private_set(base,aeb_base_thread_key));
+    AEB_APR_ASSERT(apr_threadkey_private_set(thread,aeb_thread_key));
 
-    ASSERT(evthread_make_base_notifiable(base) == 0);
+    AEB_ZASSERT(evthread_make_base_notifiable(base) == 0);
     register_thread_base(thread,base,pool);
   }
 #else /* !AEB_USE_THREADS */
   if (base == NULL) {
     init_aeb_non_threaded();
-    AEB_ASSERT((base = event_base_new()) != NULL,"event_base_new failed");
+    ASSERT((base = event_base_new()) != NULL);
   }
 #endif /* AEB_USE_THREADS */
   return base;
