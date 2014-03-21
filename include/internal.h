@@ -103,4 +103,19 @@ AEB_DECL_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t*,
 #define aeb_event_info_new(ev,data,flags) \
                 aeb_event_info_new_ex((ev),aeb_event_type_null, (data), (flags), NULL)
 
+
+/* Static Memory Pools (static.) */
+AEB_DECL_INTERNAL(apr_pool_t*) aeb_global_static_pool_acquire(void);
+AEB_DECL_INTERNAL(void) aeb_global_static_pool_release(void);
+/* Static Thread Local (each is per thread with low contention once created) memory pools */
+AEB_DECL_INTERNAL(apr_pool_t*) aeb_thread_static_pool_acquire(void);
+AEB_DECL_INTERNAL(void) aeb_thread_static_pool_release(void);
+
+/* Use the following two macros to ensure acquire()/release() pairing which
+ * is absolutely crucial for globally shared static pools.
+ */
+#define AEB_GLOBAL_STATIC_POOL_ACQUIRE() aeb_global_static_pool_acquire(); {
+#define AEB_GLOBAL_STATIC_POOL_RELEASE() } aeb_global_static_pool_release();
+
 #endif /* _LIBAEB_INTERNAL_H */
+

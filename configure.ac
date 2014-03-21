@@ -1,17 +1,20 @@
+AC_PREREQ([2.63])
 AC_INIT(apr-event-bridge,0.0.1)
 AC_COPYRIGHT([[Copyright 2014, Jesse Sipprell.
 All rights reserved.]])
 builtin(include, build/m4/aeb_args.m4)
+builtin(include, build/m4/compat.m4)
 AC_CONFIG_AUX_DIR(build)
 AC_CONFIG_MACRO_DIR(build)
 AC_CONFIG_SRCDIR(src)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([subdir-objects])
-AM_MAINTAINER_MODE
+AM_MAINTAINER_MODE([enable])
 
 LIBAEB_EXTRA_CPPFLAGS=
 LIBAEB_EXTRA_CFLAGS=
 LIBAEB_EXTRA_LIBS=
+AEB_USER_ASSERTED_CFLAGS="$CFLAGS"
 
 AC_PROG_CC
 LT_INIT([disable-static])
@@ -33,10 +36,12 @@ LIBAEB_ABI_MAJOR=0
 LIBAEB_API_VERSION=0
 LIBAEB_REVISION=1
 
+dnl -fvisibility=hidden # for darwin
 AS_IF([test x"$PLATFORM_CFLAGS" = x""],
   [AS_CASE($target_os,
     [darwin*],[PLATFORM_CFLAGS=-fvisibility=hidden],
-    [PLATFORM_CFLAGS=])])
+    [])])
+
 
 EXTRA_CPPFLAGS="-DHAVE_LIBAEB_CONFIG_H"
 LIBAEB_LINK=
@@ -77,13 +82,39 @@ AM_CONDITIONAL([BUILD_INCLUDED_LIBEVENT],[test x"$aeb_with_libevent" = x"yes"])
 AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$aeb_enable_install_pc" = x"yes" ])
 
 AS_IF([test x"$aeb_enable_debug" = x"unset"],
-  [AM_SILENT_RULES([yes])],
+  [aeb_silent_rules=
+   aeb_set_silent_rules=yes],
   [enable_shared=no
    enable_static=yes
-   AM_SILENT_RULES([no])])
+   aeb_silent_rules="$aeb_enable_debug"])
 
-AS_IF([test x"$PLATFORM_CFLAGS" != x""],
-  [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
+AS_CASE($aeb_silent_rules,
+  [gdb],[aeb_set_silent_rules=
+         aeb_enable_silent_rules="--disable-silent-rules"],
+  [no],[aeb_set_silent_rules=yes
+        aeb_enable_silent_rules="--enable-silent-rules"],
+  [yes],[aeb_set_silent_rules=no
+         aeb_enable_silent_rules="--disable-silent-rules"],
+        [aeb_set_silent_rules=yes
+         aeb_enable_silent_rules=])
+
+AS_CASE($aeb_set_silent_rules,
+  [yes],[AM_SILENT_RULES([yes])],
+  [no],[AM_SILENT_RULES([no])],
+  [])
+
+AS_CASE($aeb_enable_debug,
+  [gdb],[AS_VAR_IF([AEB_USER_ASSERTED_CFLAGS],[""],
+            [CFLAGS="-ggdb3"],[AX_APPEND_FLAG([-ggdb3],[CFLAGS])])
+         AEB_IF_AUTOCONF_VERSION([2.69],[AX_CFLAGS_WARN_ALL])
+         libaeb_cf_debugging_macro=yes],
+  [yes],[AS_VAR_IF([AEB_USER_ASSERTED_CFLAGS],[""],
+            [CFLAGS="-g"],[AX_APPEND_FLAG([-g],[CFLAGS])])
+         AEB_IF_AUTOCONF_VERSION([2.69],[AX_CFLAGS_WARN_ALL])
+         libaeb_cf_debugging_macro=yes],
+  [no],[],
+   [AEB_IF_AUTOCONF_VERSION([2.69],[AX_CFLAGS_WARN_ALL])
+   libaeb_cf_debugging_macro=yes])
 
 AS_VAR_IF([aeb_with_libevent],[yes],[
   ACX_PTHREAD([
@@ -96,13 +127,8 @@ AS_VAR_IF([aeb_with_libevent],[yes],[
       #include <pthread.h>])
 ])
 
-AS_CASE($aeb_enable_debug,
-  [gdb],[CFLAGS="-ggdb3 -Wall"
-         libaeb_cf_debugging_macro=yes],
-  [yes],[CFLAGS="$CFLAGS${CFLAGS:+ }-g"
-         libaeb_cf_debugging_macro=yes],
-  [no],,
-  [libaeb_cf_debugging_macro=yes])
+AS_VAR_IF([PLATFORM_CFLAGS],[""],[],
+  [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
 
 AS_IF([test x"$libaeb_cf_debugging_macro" = x"yes"],
   [AC_DEFINE([DEBUGGING],[1],[Define to enable extra debugging])])
@@ -190,12 +216,12 @@ AS_VAR_IF([aeb_with_libevent],[no],[
 dnl Start standard autoconf stuff
 AC_STDC_HEADERS
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([signal.h assert.h event2/thread.h])
+AC_CHECK_HEADERS([signal.h assert.h])
 AC_FUNC_ALLOCA
 AC_FUNC_STRTOLD
 AC_CHECK_FUNCS_ONCE([strtod])
 
-libaeb_main_save_LIBS="$LIBS"
+AX_SAVE_FLAGS([aeb])
 LIBS="$LIBS${LIBS:+ }$LIBAEB_LIBS"
 
 AS_VAR_IF([aeb_with_libevent],[no],[
@@ -207,7 +233,7 @@ AS_IF([test x"$ac_cv_func_alloca_works" != x"yes"],
   [AC_MSG_ERROR([this system does not support alloca(), yet a compatible implementation is not included with this distribution])])
 
 AC_REPLACE_FUNCS([apr_table_clone apr_array_clear])
-LIBS="$libaeb_main_save_LIBS"
+AX_RESTORE_FLAGS([aeb])
 
 AS_IF([test x"$aeb_with_libevent" != x"yes"],[
   AS_IF([test x"$aeb_enable_threads" != x"no"],
@@ -272,8 +298,13 @@ AS_VAR_IF([aeb_with_libevent],[yes],[
   AS_VAR_IF([aeb_enable_threads],[no],[],[
     LIBAEB_EXTRA_LIBS="$LIBAEB_EXTRA_LIBS \$(top_srcdir)/libs/libevent/libevent_pthreads.la"
   ])
-  LIBAEB_EXTRA_CPPFLAGS="$LIBAEB_EXTRA_CPPFLAGS${LIBAEB_EXTRA_CPPFLAGS:+ }-I\$(top_srcdir)/libs/libevent"
+  AX_APPEND_FLAG([[-I$srcdir/libs/libevent/include]],[LIBAEB_EXTRA_CPPFLAGS])
 ])
+
+AX_SAVE_FLAGS([aeb_event2])
+CPPFLAGS="$CPPFLAGS $LIBAEB_EXTRA_CPPFLAGS"
+AC_CHECK_HEADERS([event2/thread.h event2/event_struct.h])
+AX_RESTORE_FLAGS([aeb_event2])
 
 AC_SUBST([EXTRA_CPPFLAGS])
 AC_SUBST([LIBAEB_EXTRA_CPPFLAGS])
@@ -298,4 +329,4 @@ AC_CONFIG_FILES([libs/configure-libs],[chmod a+x libs/configure-libs])
 AM_CONFIG_HEADER([include/libaeb_config.h])
 
 AC_OUTPUT([Makefile include/libaeb_version.h src/apr_event_bridge.pc])
-cd $srcdir/libs && ./configure-libs
+cd $srcdir/libs && ./configure-libs $aeb_enable_silent_rules

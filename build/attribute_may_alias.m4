@@ -1,7 +1,7 @@
 AC_DEFUN([AEB_CHECK_ALIAS_ATTRIBUTE],
   [AC_CACHE_CHECK([[whether __attribute__((__may_alias__)) is supported]],
       [ac_cv_have_alias_attribute],
-      [aeb_save_CFLAGS="$CFLAGS"
+      [AX_SAVE_FLAGS([aeb_check_alias_attribute])
       CFLAGS="-fstrict-aliasing -Werror -Wstrict-aliasing"
       AC_COMPILE_IFELSE([
         AC_LANG_PROGRAM([[
@@ -13,7 +13,7 @@ AC_DEFUN([AEB_CHECK_ALIAS_ATTRIBUTE],
           ]])],
         [ac_cv_have_alias_attribute=yes],
         [ac_cv_have_alias_attribute=no])
-      CFLAGS="$aeb_save_CFLAGS"])
+      AX_RESTORE_FLAGS([aeb_check_alias_attribute])])
     
   AS_IF([test x"$ac_cv_have_alias_attribute" = x"yes"],
       [AC_DEFINE_UNQUOTED([HAVE_RELAXED_ALIAS_ATTRIBUTE],[1],

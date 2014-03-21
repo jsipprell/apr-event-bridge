@@ -4,9 +4,7 @@
 #dnl AEB_EVENT_CHECK_THREADS([ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
 AC_DEFUN([AEB_EVENT_CHECK_THREADS],
   [AC_MSG_CHECKING([type of threads supported by libevent])
-   _aeb_save_CPPFLAGS="$CPPFLAGS"
-   _aeb_save_CFLAGS="$CFLAGS"
-   _aeb_save_LIBS="$LIBS"
+   AX_SAVE_FLAGS([aeb_event_check_threads])
    AS_VAR_IF([LIBEVENT_INCDIR],[""],[CPPFLAGS=],[CPPFLAGS="-I$LIBEVENT_INCDIR"])
    AS_IF([test x"$LIBEVENT_PTHREADS_CFLAGS" = x""],
       [CFLAGS="$LIBEVENT_CFLAGS"],
@@ -35,8 +33,6 @@ AC_DEFUN([AEB_EVENT_CHECK_THREADS],
        AC_MSG_RESULT([$libevent_thread_type])],
       [libevent_thread_type=
        AC_MSG_RESULT([none])])
-   LIBS="$_aeb_save_LIBS"
-   CFLAGS="$_aeb_save_CFLAGS"
-   CPPFLAGS="$_aeb_save_CPPFLAGS"
+   AX_RESTORE_FLAGS([aeb_event_check_threads])
    AS_VAR_IF([libevent_thread_type],[""],[$2],[$1])dnl
 ])

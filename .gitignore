@@ -4,8 +4,10 @@ config.status
 configure
 stamp-h1
 Makefile
+libtool
 *.la
 .deps/
 .libs/
 .dirstamp
+.dist-stamp
 test-*
