@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = foreign
+
 ACLOCAL_AMFLAGS = -I build
 AM_CPPFLAGS = @EXTRA_CPPFLAGS@
 AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
@@ -10,6 +12,8 @@ AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 
 LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
+DIST_COMMON = $(top_srcdir)/libs/.dist-stamp $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+EXTRA_BUILD_DIRS =
 
 EXTRA_DIST = $(LIBEVENT_PATCHES) \
              LICENSE README.threads.md \
@@ -22,9 +26,10 @@ EXTRA_DIST = $(LIBEVENT_PATCHES) \
              build/m4/aeb_args.m4
 
 if BUILD_INCLUDED_LIBEVENT
-EXTRA_BUILD_DIRS = libs/libevent
+EXTRA_BUILD_DIRS += libs/libevent
 endif
 
+DIST_SUBDIRS = . libs/libevent
 SUBDIRS = $(EXTRA_BUILD_DIRS) .
 
 if INSTALL_PKGCONFIG
@@ -72,3 +77,18 @@ test_aeb_LDADD = @LIBAEB_LIBS@ libaeb-static.la
 
 clean-local:
 	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+	@rm -f $(top_srcdir)/libs/.dist-stamp
+
+distclean-local:
+	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+
+$(top_srcdir)/libs/.dist-stamp:
+	-test -f $(top_srcdir)/libs/libevent/configure || $(am__cd) $(top_srcdir)/libs/libevent && ./autogen.sh
+	-test -f $(top_srcdir)/libs/libevent/Makefile || $(am__cd) $(top_srcdir)/libs/libevent && ./configure
+	-touch $(top_srcdir)/libs/.dist-stamp
+
+distclean: distclean-am
+	@test -f $(top_srcdir)/libs/libevent/Makefile && $(MAKE) $(AM_MAKEFLAGS) distclean-recursive ||:
+	rm -f $(am__CONFIG_DISCLEAN_FILES)
+	rm -rf lib/$(DEPDIR) src/$(DEPDIR)
+	rm -f Makefile

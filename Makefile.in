@@ -82,23 +82,11 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+DIST_COMMON = $(top_srcdir)/libs/.dist-stamp $(DIST_SOURCES) \
+	$(TEXINFOS) $(EXTRA_DIST)
+@BUILD_INCLUDED_LIBEVENT_TRUE@am__append_1 = libs/libevent
 noinst_PROGRAMS = test-aeb$(EXEEXT)
 subdir = .
-DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
-	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(top_srcdir)/configure $(am__configure_deps) \
-	$(top_srcdir)/include/libaeb_config.h.in \
-	$(top_srcdir)/libs/configure-libs.in \
-	$(top_srcdir)/include/libaeb_version.h.in \
-	$(top_srcdir)/src/apr_event_bridge.pc.in \
-	$(top_srcdir)/lib/apr_array_clear.c \
-	$(top_srcdir)/lib/apr_table_clone.c \
-	$(top_srcdir)/build/depcomp $(libaeb_la_include_HEADERS) \
-	COPYING build/compile build/config.guess build/config.sub \
-	build/depcomp build/install-sh build/missing build/ltmain.sh \
-	$(top_srcdir)/build/compile $(top_srcdir)/build/config.guess \
-	$(top_srcdir)/build/config.sub $(top_srcdir)/build/install-sh \
-	$(top_srcdir)/build/ltmain.sh $(top_srcdir)/build/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/build/acx_pthread.m4 \
 	$(top_srcdir)/build/aeb_event_check_threads.m4 \
@@ -267,7 +255,6 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
-DIST_SUBDIRS = libs/libevent .
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -459,12 +446,14 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I build
 AM_CPPFLAGS = @EXTRA_CPPFLAGS@
 AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
 AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
+EXTRA_BUILD_DIRS = $(am__append_1)
 EXTRA_DIST = $(LIBEVENT_PATCHES) \
              LICENSE README.threads.md \
              build/find_apu.m4 build/find_apr.m4 \
@@ -475,7 +464,7 @@ EXTRA_DIST = $(LIBEVENT_PATCHES) \
              build/acx_pthread.m4 \
              build/m4/aeb_args.m4
 
-@BUILD_INCLUDED_LIBEVENT_TRUE@EXTRA_BUILD_DIRS = libs/libevent
+DIST_SUBDIRS = . libs/libevent
 SUBDIRS = $(EXTRA_BUILD_DIRS) .
 @INSTALL_PKGCONFIG_TRUE@pkgconfigdir = $(libdir)/pkgconfig
 @INSTALL_PKGCONFIG_TRUE@pkgconfig_DATA = src/apr_event_bridge.pc
@@ -520,15 +509,15 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
-	      echo ' cd $(srcdir) && $(AUTOMAKE) --gnu'; \
-	      $(am__cd) $(srcdir) && $(AUTOMAKE) --gnu \
+	      echo ' cd $(srcdir) && $(AUTOMAKE) --foreign'; \
+	      $(am__cd) $(srcdir) && $(AUTOMAKE) --foreign \
 		&& exit 0; \
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu Makefile
+	  $(AUTOMAKE) --foreign Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -1227,12 +1216,8 @@ clean: clean-recursive
 clean-am: clean-generic clean-libLTLIBRARIES clean-libtool clean-local \
 	clean-noinstLTLIBRARIES clean-noinstPROGRAMS mostlyclean-am
 
-distclean: distclean-recursive
-	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf lib/$(DEPDIR) src/$(DEPDIR)
-	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
-	distclean-hdr distclean-libtool distclean-tags
+	distclean-hdr distclean-libtool distclean-local distclean-tags
 
 dvi: dvi-recursive
 
@@ -1307,23 +1292,39 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
 	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
 	distcheck distclean distclean-compile distclean-generic \
-	distclean-hdr distclean-libtool distclean-tags distcleancheck \
-	distdir distuninstallcheck dvi dvi-am html html-am info \
-	info-am install install-am install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-libaeb_la_includeHEADERS \
-	install-man install-pdf install-pdf-am install-pkgconfigDATA \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
+	distclean-hdr distclean-libtool distclean-local distclean-tags \
+	distcleancheck distdir distuninstallcheck dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-libLTLIBRARIES \
+	install-libaeb_la_includeHEADERS install-man install-pdf \
+	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-libLTLIBRARIES \
 	uninstall-libaeb_la_includeHEADERS uninstall-pkgconfigDATA
 
 
 clean-local:
 	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+	@rm -f $(top_srcdir)/libs/.dist-stamp
+
+distclean-local:
+	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+
+$(top_srcdir)/libs/.dist-stamp:
+	-test -f $(top_srcdir)/libs/libevent/configure || $(am__cd) $(top_srcdir)/libs/libevent && ./autogen.sh
+	-test -f $(top_srcdir)/libs/libevent/Makefile || $(am__cd) $(top_srcdir)/libs/libevent && ./configure
+	-touch $(top_srcdir)/libs/.dist-stamp
+
+distclean: distclean-am
+	@test -f $(top_srcdir)/libs/libevent/Makefile && $(MAKE) $(AM_MAKEFLAGS) distclean-recursive ||:
+	rm -f $(am__CONFIG_DISCLEAN_FILES)
+	rm -rf lib/$(DEPDIR) src/$(DEPDIR)
+	rm -f Makefile
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
