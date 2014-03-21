@@ -82,11 +82,24 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-DIST_COMMON = $(top_srcdir)/libs/.dist-stamp $(DIST_SOURCES) \
-	$(TEXINFOS) $(EXTRA_DIST)
 @BUILD_INCLUDED_LIBEVENT_TRUE@am__append_1 = libs/libevent
 noinst_PROGRAMS = test-aeb$(EXEEXT)
 subdir = .
+DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
+	$(top_srcdir)/configure $(am__configure_deps) \
+	$(top_srcdir)/include/libaeb_config.h.in \
+	$(top_srcdir)/libs/configure-libs.in \
+	$(top_srcdir)/include/libaeb_version.h.in \
+	$(top_srcdir)/src/apr_event_bridge.pc.in \
+	$(top_srcdir)/lib/apr_array_clear.c \
+	$(top_srcdir)/lib/apr_table_clone.c \
+	$(top_srcdir)/build/depcomp $(libaeb_la_include_HEADERS) \
+	AUTHORS COPYING ChangeLog INSTALL NEWS README build/compile \
+	build/config.guess build/config.sub build/depcomp \
+	build/install-sh build/missing build/ltmain.sh \
+	$(top_srcdir)/build/compile $(top_srcdir)/build/config.guess \
+	$(top_srcdir)/build/config.sub $(top_srcdir)/build/install-sh \
+	$(top_srcdir)/build/ltmain.sh $(top_srcdir)/build/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/build/acx_pthread.m4 \
 	$(top_srcdir)/build/aeb_event_check_threads.m4 \
@@ -255,7 +268,6 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
 am__remove_distdir = \
@@ -453,9 +465,10 @@ AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
 AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
+DISTFILES = $(top_srcdir)/libs/.dist-stamp $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 EXTRA_BUILD_DIRS = $(am__append_1)
-EXTRA_DIST = $(LIBEVENT_PATCHES) \
-             LICENSE README.threads.md \
+EXTRA_DIST = $(LIBEVENT_PATCHES) autogen.sh \
+             README.threads.md \
              build/find_apu.m4 build/find_apr.m4 \
              build/attribute_may_alias.m4 \
              build/visibility_hidden.m4 \
@@ -1314,6 +1327,7 @@ clean-local:
 
 distclean-local:
 	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+	@rm -f $(top_srcdir)/config.log $(top_srcdir)/libs/libevent/config.log
 
 $(top_srcdir)/libs/.dist-stamp:
 	-test -f $(top_srcdir)/libs/libevent/configure || $(am__cd) $(top_srcdir)/libs/libevent && ./autogen.sh

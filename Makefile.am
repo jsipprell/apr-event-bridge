@@ -12,11 +12,11 @@ AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 
 LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
-DIST_COMMON = $(top_srcdir)/libs/.dist-stamp $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+DISTFILES = $(top_srcdir)/libs/.dist-stamp $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 EXTRA_BUILD_DIRS =
 
-EXTRA_DIST = $(LIBEVENT_PATCHES) \
-             LICENSE README.threads.md \
+EXTRA_DIST = $(LIBEVENT_PATCHES) autogen.sh \
+             README.threads.md \
              build/find_apu.m4 build/find_apr.m4 \
              build/attribute_may_alias.m4 \
              build/visibility_hidden.m4 \
@@ -81,6 +81,7 @@ clean-local:
 
 distclean-local:
 	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
+	@rm -f $(top_srcdir)/config.log $(top_srcdir)/libs/libevent/config.log
 
 $(top_srcdir)/libs/.dist-stamp:
 	-test -f $(top_srcdir)/libs/libevent/configure || $(am__cd) $(top_srcdir)/libs/libevent && ./autogen.sh
