@@ -274,7 +274,7 @@ AS_VAR_IF([aeb_with_libevent],[yes],[
   AS_VAR_IF([aeb_enable_threads],[no],[],[
     LIBAEB_EXTRA_LIBS="$LIBAEB_EXTRA_LIBS \$(top_srcdir)/libs/libevent/libevent_pthreads.la"
   ])
-  LIBAEB_EXTRA_CPPFLAGS="$LIBAEB_EXTRA_CPPFLAGS${LIBAEB_EXTRA_CPPFLAGS:+ }-I\$(top_srcdir)/libs/libevent"
+  AX_APPEND_FLAG([[-I$srcdir/libs/libevent/include]],[LIBAEB_EXTRA_CPPFLAGS])
 ])
 
 AC_SUBST([EXTRA_CPPFLAGS])
