@@ -192,7 +192,7 @@ AS_VAR_IF([aeb_with_libevent],[no],[
 dnl Start standard autoconf stuff
 AC_STDC_HEADERS
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([signal.h assert.h event2/thread.h])
+AC_CHECK_HEADERS([signal.h assert.h])
 AC_FUNC_ALLOCA
 AC_FUNC_STRTOLD
 AC_CHECK_FUNCS_ONCE([strtod])
@@ -276,6 +276,11 @@ AS_VAR_IF([aeb_with_libevent],[yes],[
   ])
   AX_APPEND_FLAG([[-I$srcdir/libs/libevent/include]],[LIBAEB_EXTRA_CPPFLAGS])
 ])
+
+AX_SAVE_FLAGS([aeb_event2])
+CPPFLAGS="$CPPFLAGS $LIBAEB_EXTRA_CPPFLAGS"
+AC_CHECK_HEADERS([event2/thread.h event2/event_struct.h])
+AX_RESTORE_FLAGS([aeb_event2])
 
 AC_SUBST([EXTRA_CPPFLAGS])
 AC_SUBST([LIBAEB_EXTRA_CPPFLAGS])

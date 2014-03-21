@@ -83,7 +83,7 @@
 #include <apr_buckets.h>
 
 /* libevent */
-#include <event.h>
+#include <event2/event.h>
 
 #ifdef AEB_USE_THREADS
 # ifdef HAVE_EVENT2_THREAD_H

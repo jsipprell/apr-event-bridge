@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS = foreign
 
 ACLOCAL_AMFLAGS = -I build
-AM_CPPFLAGS = @EXTRA_CPPFLAGS@
-AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
+AM_CPPFLAGS = @EXTRA_CPPFLAGS@ @LIBAEB_EXTRA_CPPFLAGS@
+AM_CFLAGS = $(DEBUG_CFLAGS) -Wall @LIBAEB_EXTRA_CFLAGS@
 LIBAEB_ABI_MAJOR = @LIBAEB_ABI_MAJOR@
 LIBAEB_ABI_COMPAT = @LIBAEB_ABI_COMPAT@
 LIBAEB_API_VERSION = @LIBAEB_API_VERSION@
@@ -52,8 +52,6 @@ libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_event_types.h \
                             $(AEBINC)/libaeb_event_info.h
 
-libaeb_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
-libaeb_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CPPFLAGS)
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
 
 libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
@@ -67,8 +65,6 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
 
 libaeb_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 
-libaeb_static_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
-libaeb_static_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CFLAGS)
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
 libaeb_static_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 

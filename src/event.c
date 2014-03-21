@@ -1,5 +1,9 @@
 #include "internal.h"
 
+#ifdef HAVE_EVENT2_EVENT_STRUCT_H
+#include <event2/event_struct.h>
+#endif
+
 AEB_POOL_IMPLEMENT_ACCESSOR(event)
 
 static void dispatch_callback(evutil_socket_t, short, void*);
@@ -115,8 +119,12 @@ static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd
 static inline struct event *pcalloc_libevent(apr_pool_t *pool)
 {
   apr_size_t event_sz = event_get_struct_event_size();
+#ifdef HAVE_EVENT2_EVENT_STRUCT_H
   return (struct event*)apr_pcalloc(pool,event_sz < sizeof(struct event) ?
                                    sizeof(struct event) : event_sz);
+#else /* !HAVE_EVENT2_EVENT_STRUCT_H */
+  return event_sz;
+#endif
 }
 
 AEB_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t *pool,
