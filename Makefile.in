@@ -105,6 +105,9 @@ am__aclocal_m4_deps = $(top_srcdir)/build/acx_pthread.m4 \
 	$(top_srcdir)/build/aeb_event_check_threads.m4 \
 	$(top_srcdir)/build/aeb_has_threads.m4 \
 	$(top_srcdir)/build/attribute_may_alias.m4 \
+	$(top_srcdir)/build/ax_append_flag.m4 \
+	$(top_srcdir)/build/ax_cflags_warn_all.m4 \
+	$(top_srcdir)/build/ax_require_defined.m4 \
 	$(top_srcdir)/build/ax_restore_flags.m4 \
 	$(top_srcdir)/build/ax_save_flags.m4 \
 	$(top_srcdir)/build/find_apr.m4 \

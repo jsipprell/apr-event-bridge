@@ -82,6 +82,8 @@ AS_IF([test x"$aeb_enable_debug" = x"unset"],
    enable_static=yes
    AM_SILENT_RULES([no])])
 
+AS_VAR_IF([aeb_enable_debug],[no],[],[AX_CFLAGS_WARN_ALL])
+
 AS_IF([test x"$PLATFORM_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
 
@@ -97,9 +99,9 @@ AS_VAR_IF([aeb_with_libevent],[yes],[
 ])
 
 AS_CASE($aeb_enable_debug,
-  [gdb],[CFLAGS="-ggdb3 -Wall"
+  [gdb],[AX_APPEND_FLAG([-ggdb3],[CFLAGS])
          libaeb_cf_debugging_macro=yes],
-  [yes],[CFLAGS="$CFLAGS${CFLAGS:+ }-g"
+  [yes],[AX_APPEND_FLAG([-g],[CFLAGS])
          libaeb_cf_debugging_macro=yes],
   [no],,
   [libaeb_cf_debugging_macro=yes])
