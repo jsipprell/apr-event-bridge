@@ -112,8 +112,10 @@ typedef enum {
 #define AEB_FLAG_TIMEOUT aeb_flag_timeout
   aeb_flag_persist = EV_PERSIST << 8,
 #define AEB_FLAG_PERSIST aeb_flag_persist
+#ifdef EV_ET
   aeb_flag_edge_triggered = EV_ET << 8
 #define AEB_FLAG_EDGE_TRIGGERED aeb_flag_edge_triggered
+#endif
 } aeb_flag_t;
 
 /* common types */
