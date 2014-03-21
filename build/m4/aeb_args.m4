@@ -39,7 +39,10 @@ dnl $1 = option name
 dnl $2 = help-string
 dnl $3 = default value (no)
 dnl $4 = allowed values (yes or no)
+dnl $5 = optional code to run if --with or --without is used regardless of option value
+dnl $6 = optional code to run if option not used, $aeb_with_<name> will be set before call
 AC_DEFUN([AEB_ARG_WITH], [# AEB begin --with-$1
+  aeb_arg_set=no
   pushdef([aeb_VarName],translit([$1],[-],[_]))
   AC_ARG_WITH($1,[$2 @<:@default=]ifelse($3,,yes,$3)@:>@,[
     aeb_arg=invalid
@@ -50,6 +53,8 @@ AC_DEFUN([AEB_ARG_WITH], [# AEB begin --with-$1
     done
     if test x"$aeb_arg" = x"invalid"; then
       AC_MSG_ERROR(bad value [']$withval['] for --with-$1)
+    else
+      aeb_arg_set=yes
     fi
     [aeb_with_]aeb_VarName="$aeb_arg"
 ],
@@ -57,4 +62,5 @@ AC_DEFUN([AEB_ARG_WITH], [# AEB begin --with-$1
 dnl AC_MSG_RESULT([AEB --with-$1 $aeb_with_$1])
   popdef([aeb_VarName])
 # AEB end --with-$1
+  AS_VAR_IF([aeb_arg_set],[yes],[$5],[$6])dnl
 ])dnl

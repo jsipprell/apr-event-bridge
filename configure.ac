@@ -9,6 +9,10 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([subdir-objects])
 AM_MAINTAINER_MODE
 
+LIBAEB_EXTRA_CPPFLAGS=
+LIBAEB_EXTRA_CFLAGS=
+LIBAEB_EXTRA_LIBS=
+
 AC_PROG_CC
 LT_INIT([disable-static])
 AC_PROG_INSTALL
@@ -34,7 +38,7 @@ AS_IF([test x"$PLATFORM_CFLAGS" = x""],
     [darwin*],[PLATFORM_CFLAGS=-fvisibility=hidden],
     [PLATFORM_CFLAGS=])])
 
-LIBAEB_EXTRA_CPPFLAGS="-DHAVE_LIBAEB_CONFIG_H"
+EXTRA_CPPFLAGS="-DHAVE_LIBAEB_CONFIG_H"
 LIBAEB_LINK=
 LIBAEB_LIBS=
 LIBAEB_INCLUDE=
@@ -57,6 +61,19 @@ AEB_ARG_ENABLE(threads,
   [AS_HELP_STRING([--enable-threads@<:@=OPTION@:>@],
     [Enable thread support])],[auto],[yes no auto])
 
+AEB_ARG_WITH(libevent,
+  [AS_HELP_STRING([--with-libevent@<:@=sys@:>@],
+    [Build included libevent (sys uses system libevent)])],[sys],[yes no sys],
+    [AS_CASE($aeb_with_libevent,
+        [yes],,
+        [no],[AC_MSG_ERROR([Libevent is required, please use --with-libevent to build bundled version])],
+        [sys],,
+        [aeb_with_libevent=yes])
+    ])
+
+AS_VAR_IF([aeb_with_libevent],[sys],[aeb_with_libevent=no])
+
+AM_CONDITIONAL([BUILD_INCLUDED_LIBEVENT],[test x"$aeb_with_libevent" = x"yes"])
 AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$aeb_enable_install_pc" = x"yes" ])
 
 AS_IF([test x"$aeb_enable_debug" = x"unset"],
@@ -67,6 +84,17 @@ AS_IF([test x"$aeb_enable_debug" = x"unset"],
 
 AS_IF([test x"$PLATFORM_CFLAGS" != x""],
   [CFLAGS="$CFLAGS${CFLAGS:+ }$PLATFORM_CFLAGS"])
+
+AS_VAR_IF([aeb_with_libevent],[yes],[
+  ACX_PTHREAD([
+        AC_DEFINE(HAVE_PTHREADS, 1,
+                [Define if we have pthreads on this system])
+        have_pthreads=yes])
+  CFLAGS="$CFLAGS${CFLAGS:+ }$PTHREAD_CFLAGS"
+  AC_CHECK_SIZEOF(pthread_t, ,
+     [AC_INCLUDES_DEFAULT()
+      #include <pthread.h>])
+])
 
 AS_CASE($aeb_enable_debug,
   [gdb],[CFLAGS="-ggdb3 -Wall"
@@ -117,45 +145,47 @@ AS_IF([test x"$aeb_enable_threads" != x"no"],
   [AEB_HAS_THREADS([],
     [AS_VAR_IF([aeb_enable_threads],[auto],
                 [aeb_enable_threads=no
-                 AC_MSG_WARN([Thread support disabled])],
+                 AC_MSG_WARN([Thread support disabled -- APR support not detected])],
                 [AC_MSG_ERROR([Apache Portable Runtime not configured for thread support!])])
      ])dnl
 ])
 
-AS_VAR_IF([aeb_enable_threads],[no],
-  [LIBEVENT_PKGCONFIG_NAME=libevent
-   PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
-  [PKG_CHECK_MODULES([LIBEVENT],[libevent_pthreads >= 2.0.0],
-    [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
-    [AS_VAR_IF([aeb_enable_threads],[yes],
-      [AC_MSG_WARN([libevent thread support unavailable via pkg-config, ignoring, but may cause issues later...])
-       LIBEVENT_PKGCONFIG_NAME=libevent
-       AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
-       PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
-      [AC_MSG_WARN([libevent thread support unavailable via pkg-config, please use --enable-threads to force building w/ thread support])
-       aeb_enable_threads=no
-       LIBEVENT_PKGCONFIG_NAME=libevent
-       AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
-       PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])])
-    ])dnl
-])
+AS_VAR_IF([aeb_with_libevent],[no],[
+  AS_VAR_IF([aeb_enable_threads],[no],
+    [LIBEVENT_PKGCONFIG_NAME=libevent
+     PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
+    [PKG_CHECK_MODULES([LIBEVENT],[libevent_pthreads >= 2.0.0],
+      [LIBEVENT_PKGCONFIG_NAME=libevent_pthreads],
+      [AS_VAR_IF([aeb_enable_threads],[yes],
+        [AC_MSG_WARN([libevent thread support unavailable via pkg-config, ignoring, but may cause issues later...])
+         LIBEVENT_PKGCONFIG_NAME=libevent
+         AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
+         PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])],
+        [AC_MSG_WARN([libevent thread support unavailable via pkg-config, please use --enable-threads to force building w/ thread support])
+         aeb_enable_threads=no
+         LIBEVENT_PKGCONFIG_NAME=libevent
+         AC_MSG_NOTICE([Switching pkg-config to non-thread detection mode for libevent])
+         PKG_CHECK_MODULES([LIBEVENT],[libevent >= 2.0.0])])
+      ])
+    ])
+  PKG_CHECK_VAR([LIBEVENT_INCDIR],[$LIBEVENT_PKGCONFIG_NAME],[includedir],
+                  [LIBEVENT_CPPFLAGS="-I$LIBEVENT_INCDIR"])
 
-PKG_CHECK_VAR([LIBEVENT_INCDIR],[$LIBEVENT_PKGCONFIG_NAME],[includedir],
-                [LIBEVENT_CPPFLAGS="-I$LIBEVENT_INCDIR"])
+  AS_IF([test x"$LIBEVENT_CFLAGS" != x""],
+    [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_CFLAGS"
+     LIBAEB_INCLUDE="$LIBAEB_INCLUDE${LIBAEB_INCLUDE:+ }$LIBEVENT_CFLAGS"],[])
+  AS_IF([test x"$LIBEVENT_PTHREADS_CFLAGS" != x""],
+    [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_PTHREADS_CFLAGS"
+     LIBAEB_INCLUDE="$LIBAEB_INCLUDE${LIBAEB_INCLUDE:+ }$LIBEVENT_PTHREADS_CFLAGS"],[])
 
-AS_IF([test x"$LIBEVENT_CFLAGS" != x""],
-  [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_CFLAGS"
-   LIBAEB_INCLUDE="$LIBAEB_INCLUDE${LIBAEB_INCLUDE:+ }$LIBEVENT_CFLAGS"],[])
-AS_IF([test x"$LIBEVENT_PTHREADS_CFLAGS" != x""],
-  [CFLAGS="$CFLAGS${CFLAGS:+ }$LIBEVENT_PTHREADS_CFLAGS"
-   LIBAEB_INCLUDE="$LIBAEB_INCLUDE${LIBAEB_INCLUDE:+ }$LIBEVENT_PTHREADS_CFLAGS"],[])
+  AS_IF([test x"$LIBEVENT_LIBS" != x""],
+    [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$LIBEVENT_LIBS"
+     LIBAEB_LINK="$LIBAEB_LINK${LIBAEB_LINK:+ }$LIBEVENT_LIBS"],[])
+  AS_IF([test x"$LIBEVENT_PTHREADS_LIBS" != x""],
+    [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$LIBEVENT_PTHREADS_LIBS"
+     LIBAEB_LINK="$LIBAEB_LINK${LIBAEB_LINK:+ }$LIBEVENT_PTHREADS_LIBS"],[])
 
-AS_IF([test x"$LIBEVENT_LIBS" != x""],
-  [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$LIBEVENT_LIBS"
-   LIBAEB_LINK="$LIBAEB_LINK${LIBAEB_LINK:+ }$LIBEVENT_LIBS"],[])
-AS_IF([test x"$LIBEVENT_PTHREADS_LIBS" != x""],
-  [LIBAEB_LIBS="$LIBAEB_LIBS${LIBAEB_LIBS:+ }$LIBEVENT_PTHREADS_LIBS"
-   LIBAEB_LINK="$LIBAEB_LINK${LIBAEB_LINK:+ }$LIBEVENT_PTHREADS_LIBS"],[])
+],[LIBEVENT_PKGCONFIG_NAME=])
 
 dnl Start standard autoconf stuff
 AC_STDC_HEADERS
@@ -167,8 +197,11 @@ AC_CHECK_FUNCS_ONCE([strtod])
 
 libaeb_main_save_LIBS="$LIBS"
 LIBS="$LIBS${LIBS:+ }$LIBAEB_LIBS"
-AC_CHECK_FUNCS([event_set_mem_functions],[],
-  [AC_MSG_FAILURE([Your libevent is too old or was configured with --disable-malloc-replacement])])
+
+AS_VAR_IF([aeb_with_libevent],[no],[
+  AC_CHECK_FUNCS([event_set_mem_functions],[],
+    [AC_MSG_FAILURE([Your libevent is too old or was configured with --disable-malloc-replacement])])
+])
 
 AS_IF([test x"$ac_cv_func_alloca_works" != x"yes"],
   [AC_MSG_ERROR([this system does not support alloca(), yet a compatible implementation is not included with this distribution])])
@@ -176,20 +209,27 @@ AS_IF([test x"$ac_cv_func_alloca_works" != x"yes"],
 AC_REPLACE_FUNCS([apr_table_clone apr_array_clear])
 LIBS="$libaeb_main_save_LIBS"
 
-AS_IF([test x"$aeb_enable_threads" != x"no"],
-  [AEB_EVENT_CHECK_THREADS(
-    [AC_DEFINE_UNQUOTED([PLATFORM_THREAD_TYPE],[["]$libevent_thread_type["]],
-        [Define to the type of thread supported on your platform (pthreads, windows, etc)])
-     aeb_enable_threads=yes],
-    [AS_VAR_IF([aeb_enable_threads],[auto],
-      [aeb_enable_threads=no
-       AC_MSG_WARN([Thread support disabled])],
-      [AC_MSG_FAILURE([Your libevent is too old or not configured for thread support!])]
-    )])
-  ])
+AS_IF([test x"$aeb_with_libevent" != x"yes"],[
+  AS_IF([test x"$aeb_enable_threads" != x"no"],
+    [AEB_EVENT_CHECK_THREADS(
+      [AC_DEFINE_UNQUOTED([PLATFORM_THREAD_TYPE],[["]$libevent_thread_type["]],
+          [Define to the type of thread supported on your platform (pthreads, windows, etc)])
+      aeb_enable_threads=yes],
+      [AS_VAR_IF([aeb_enable_threads],[auto],
+        [aeb_enable_threads=no
+        AC_MSG_WARN([Thread support disabled -- libevent support not detected])],
+        [AC_MSG_FAILURE([Your libevent is too old or not configured for thread support!])]
+      )])
+    ])
+  ],[test x"$aeb_enable_threads" != x"no"],
+    [AS_VAR_IF([PTHREAD_CFLAGS],[""],[],
+      [AC_DEFINE_UNQUOTED([PLATFORM_THREAD_TYPE],[pthreads])])
+     AS_VAR_IF([aeb_enable_threads],[auto],[aeb_enable_threads=yes])
+    ])
 
 AC_RUN_IFELSE(
-  [AC_LANG_PROGRAM([[#include <apr_version.h>
+  [AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT()
+                    [#include <apr_version.h>
                      #include <stdio.h>]],
                    [[FILE *fp = fopen("conftest.out","w");
                      fprintf(fp,"%u\n%u\n%u",APR_MAJOR_VERSION,
@@ -227,7 +267,18 @@ AS_IF([test 0"$APR_MAJOR_VERSION" -eq 1],
 AS_IF([test x"$aeb_enable_threads" != x"no"],
   [AC_DEFINE([AEB_USE_THREADS],[1],[Define to enable thread support])])
 
+AS_VAR_IF([aeb_with_libevent],[yes],[
+  LIBAEB_EXTRA_LIBS="$LIBAEB_EXTRA_LIBS${LIBAEB_EXTRA_LIBS:+ }\$(top_srcdir)/libs/libevent/libevent.la"
+  AS_VAR_IF([aeb_enable_threads],[no],[],[
+    LIBAEB_EXTRA_LIBS="$LIBAEB_EXTRA_LIBS \$(top_srcdir)/libs/libevent/libevent_pthreads.la"
+  ])
+  LIBAEB_EXTRA_CPPFLAGS="$LIBAEB_EXTRA_CPPFLAGS${LIBAEB_EXTRA_CPPFLAGS:+ }-I\$(top_srcdir)/libs/libevent"
+])
+
+AC_SUBST([EXTRA_CPPFLAGS])
 AC_SUBST([LIBAEB_EXTRA_CPPFLAGS])
+AC_SUBST([LIBAEB_EXTRA_CFLAGS])
+AC_SUBST([LIBAEB_EXTRA_LIBS])
 
 AC_SUBST([LIBAEB_ABI_MAJOR])
 AC_SUBST([LIBAEB_ABI_COMPAT])
@@ -240,6 +291,11 @@ AC_SUBST([LIBAEB_INCLUDE])
 
 AC_SUBST([LIBEVENT_PKGCONFIG_NAME])
 
+AC_SUBST([SHELL])
+AC_SUBST([module_configure_flags],["$ac_configure_args"])
+
+AC_CONFIG_FILES([libs/configure-libs],[chmod a+x libs/configure-libs])
 AM_CONFIG_HEADER([include/libaeb_config.h])
 
 AC_OUTPUT([Makefile include/libaeb_version.h src/apr_event_bridge.pc])
+cd $srcdir/libs && ./configure-libs

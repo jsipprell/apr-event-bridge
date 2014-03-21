@@ -1,0 +1,23 @@
+diff --git a/Makefile.am b/Makefile.am
+index 42879a3..56e5c25 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -126,7 +126,7 @@ else
+ noinst_LTLIBRARIES =  $(LIBEVENT_LIBS_LA)
+ endif
+ 
+-SUBDIRS = . include sample test
++SUBDIRS = . include
+ 
+ if BUILD_WIN32
+ 
+diff --git a/configure.in b/configure.in
+index 18165f3..3c6540a 100644
+--- a/configure.in
++++ b/configure.in
+@@ -803,4 +803,4 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
+ AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
+ 
+ AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
+-AC_OUTPUT(Makefile include/Makefile test/Makefile sample/Makefile)
++AC_OUTPUT(Makefile include/Makefile)

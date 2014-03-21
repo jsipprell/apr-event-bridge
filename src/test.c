@@ -293,6 +293,6 @@ int main(int argc, const char *const *argv, const char *const *env)
   AEB_ASSERT(rc == APR_SUCCESS,"apr_pool_create failued");
   apr_pool_tag(root_pool,"LIBAEB ROOT POOT");
 
-  test_aeb();
+  test_aeb_pools();
   apr_terminate();
 }

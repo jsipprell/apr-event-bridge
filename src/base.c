@@ -341,7 +341,7 @@ AEB_INTERNAL(struct event_base*) aeb_event_base(void)
     AEB_APR_ASSERT(apr_threadkey_private_set(base,aeb_base_thread_key));
     AEB_APR_ASSERT(apr_threadkey_private_set(thread,aeb_thread_key));
 
-    AEB_ZASSERT(evthread_make_base_notifiable(base) == 0);
+    AEB_ZASSERT(evthread_make_base_notifiable(base));
     register_thread_base(thread,base,pool);
   }
 #else /* !AEB_USE_THREADS */

@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS = -I build
-AM_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@
+AM_CPPFLAGS = @EXTRA_CPPFLAGS@
 AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
 LIBAEB_ABI_MAJOR = @LIBAEB_ABI_MAJOR@
 LIBAEB_ABI_COMPAT = @LIBAEB_ABI_COMPAT@
@@ -9,15 +9,23 @@ LIBAEB_REVISION = @LIBAEB_REVISION@
 AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
 
-EXTRA_DIST = LICENSE README.threads.md \
+LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
+
+EXTRA_DIST = $(LIBEVENT_PATCHES) \
+             LICENSE README.threads.md \
              build/find_apu.m4 build/find_apr.m4 \
              build/attribute_may_alias.m4 \
              build/visibility_hidden.m4 \
              build/aeb_event_check_threads.m4 \
              build/aeb_has_threads.m4 \
+             build/acx_pthread.m4 \
              build/m4/aeb_args.m4
 
-SUBDIRS = .
+if BUILD_INCLUDED_LIBEVENT
+EXTRA_BUILD_DIRS = libs/libevent
+endif
+
+SUBDIRS = $(EXTRA_BUILD_DIRS) .
 
 if INSTALL_PKGCONFIG
 pkgconfigdir = $(libdir)/pkgconfig
@@ -28,6 +36,9 @@ lib_LTLIBRARIES = libaeb.la
 noinst_LTLIBRARIES = libaeb-static.la libcompat.la
 noinst_PROGRAMS = test-aeb
 
+libcompat_la_SOURCES = lib/stub.c include/compat.h
+libcompat_la_LIBADD = @LTLIBOBJS@
+
 libaeb_la_includedir = $(includedir)/apr_event_bridge
 libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_version.h \
@@ -36,10 +47,9 @@ libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_event_types.h \
                             $(AEBINC)/libaeb_event_info.h
 
+libaeb_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
+libaeb_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CPPFLAGS)
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
-
-libcompat_la_SOURCES = lib/stub.c include/compat.h
-libcompat_la_LIBADD = @LTLIBOBJS@
 
 libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/internal.h include/compat.h include/event_types.h \
@@ -50,10 +60,15 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     src/timers.c \
                     src/loop.c
 
-libaeb_la_LIBADD = libcompat.la
+libaeb_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 
+libaeb_static_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
+libaeb_static_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CFLAGS)
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
-libaeb_static_la_LIBADD = libcompat.la
+libaeb_static_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 
 test_aeb_SOURCES = src/test.c
 test_aeb_LDADD = @LIBAEB_LIBS@ libaeb-static.la
+
+clean-local:
+	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*

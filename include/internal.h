@@ -49,9 +49,9 @@ typedef apr_status_t (*cleanup_fn)(void*);
 /* Macro to call a func that returns apr_status_t and assert APR_SUCCESS.
  * Relies on the automatic variable "st" prototyped as apr_status_t.
  */
-#define AEB_APR_ASSERT(cond) AEB_ASSERTV((st = (cond)) != APR_SUCCESS,"%s",aeb_errorstr(st,NULL))
+#define AEB_APR_ASSERT(cond) AEB_ASSERTV((st = (cond)) == APR_SUCCESS,"%s",aeb_errorstr(st,NULL))
 /* Macro to call a func that should return 0 if successful, otherwise sets errno and returns -1 */
-#define AEB_ZASSERT(cond) AEB_ASSERTV((cond) != 0,"%s",aeb_errorstr(apr_get_os_error(),NULL))
+#define AEB_ZASSERT(cond) AEB_ASSERTV((cond) == 0,"%s",aeb_errorstr(apr_get_os_error(),NULL))
 /* Macro to call a func that should return 0 if successful, otherwiser return apr_status_t
  * based on errno. */
 #define AEB_ERRNO_CALL(c) if((c) != 0) return apr_get_os_error()

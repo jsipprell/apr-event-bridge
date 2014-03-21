@@ -5,6 +5,7 @@
 
 static apr_pool_t *error_pool = NULL;
 static apr_file_t *aeb_ferror = NULL;
+static int error_pool_refcount = 0;
 
 #define ERROR_POOL_BEGIN _access_error_pool(1,0); {
 #define ERROR_POOL_END } _access_error_pool(-1,1);
@@ -12,7 +13,6 @@ static apr_file_t *aeb_ferror = NULL;
 
 static inline apr_pool_t *_access_error_pool(int ref, int clear)
 {
-  static int error_pool_refcount = 0;
   static unsigned error_pool_count = 0;
 
   error_pool_refcount += ref;
@@ -31,10 +31,17 @@ static inline apr_pool_t *_access_error_pool(int ref, int clear)
 AEB_INTERNAL(const char *) aeb_errorstr(apr_status_t st, apr_pool_t *pool)
 {
   char buf[AEB_BUFSIZE] = "";
-  ASSERT(pool != NULL);
 
   ASSERT(apr_strerror(st,buf,sizeof(buf)-1) != NULL);
   buf[sizeof(buf)-1] = '\0';
+
+  if(pool == NULL) {
+    const char *e;
+    ERROR_POOL_BEGIN
+    e = apr_pstrdup(error_pool,buf);
+    ERROR_POOL_END_SAFE
+    return e;
+  }
 
   return apr_pstrdup(pool,buf);
 }

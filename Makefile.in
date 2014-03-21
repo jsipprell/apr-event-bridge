@@ -88,6 +88,7 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
 	$(top_srcdir)/include/libaeb_config.h.in \
+	$(top_srcdir)/libs/configure-libs.in \
 	$(top_srcdir)/include/libaeb_version.h.in \
 	$(top_srcdir)/src/apr_event_bridge.pc.in \
 	$(top_srcdir)/lib/apr_array_clear.c \
@@ -99,7 +100,8 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(top_srcdir)/build/config.sub $(top_srcdir)/build/install-sh \
 	$(top_srcdir)/build/ltmain.sh $(top_srcdir)/build/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/build/aeb_event_check_threads.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/build/acx_pthread.m4 \
+	$(top_srcdir)/build/aeb_event_check_threads.m4 \
 	$(top_srcdir)/build/aeb_has_threads.m4 \
 	$(top_srcdir)/build/attribute_may_alias.m4 \
 	$(top_srcdir)/build/find_apr.m4 \
@@ -116,7 +118,8 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/include/libaeb_config.h
-CONFIG_CLEAN_FILES = include/libaeb_version.h src/apr_event_bridge.pc
+CONFIG_CLEAN_FILES = libs/configure-libs include/libaeb_version.h \
+	src/apr_event_bridge.pc
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -151,23 +154,30 @@ LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libaeb_static_la_DEPENDENCIES = libcompat.la
 am__objects_1 =
 am__dirstamp = $(am__leading_dot)dirstamp
-am__objects_2 = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/base.lo src/event.lo src/event_info.lo src/timers.lo \
-	src/loop.lo
+am__objects_2 = $(am__objects_1) src/libaeb_static_la-util.lo \
+	src/libaeb_static_la-weakref.lo src/libaeb_static_la-base.lo \
+	src/libaeb_static_la-event.lo \
+	src/libaeb_static_la-event_info.lo \
+	src/libaeb_static_la-timers.lo src/libaeb_static_la-loop.lo
 am_libaeb_static_la_OBJECTS = $(am__objects_2)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+libaeb_static_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(libaeb_static_la_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
 libaeb_la_DEPENDENCIES = libcompat.la
-am_libaeb_la_OBJECTS = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/base.lo src/event.lo src/event_info.lo src/timers.lo \
-	src/loop.lo
+am_libaeb_la_OBJECTS = $(am__objects_1) src/libaeb_la-util.lo \
+	src/libaeb_la-weakref.lo src/libaeb_la-base.lo \
+	src/libaeb_la-event.lo src/libaeb_la-event_info.lo \
+	src/libaeb_la-timers.lo src/libaeb_la-loop.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libaeb_la_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libaeb_la_CFLAGS) \
+	$(CFLAGS) $(libaeb_la_LDFLAGS) $(LDFLAGS) -o $@
 LIBOBJDIR = lib/
 libcompat_la_DEPENDENCIES = @LTLIBOBJS@
 am_libcompat_la_OBJECTS = lib/stub.lo
@@ -257,7 +267,7 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = libs/libevent .
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -329,6 +339,7 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+EXTRA_CPPFLAGS = @EXTRA_CPPFLAGS@
 FGREP = @FGREP@
 GREP = @GREP@
 INSTALL = @INSTALL@
@@ -341,7 +352,9 @@ LDFLAGS = @LDFLAGS@
 LIBAEB_ABI_COMPAT = @LIBAEB_ABI_COMPAT@
 LIBAEB_ABI_MAJOR = @LIBAEB_ABI_MAJOR@
 LIBAEB_API_VERSION = @LIBAEB_API_VERSION@
+LIBAEB_EXTRA_CFLAGS = @LIBAEB_EXTRA_CFLAGS@
 LIBAEB_EXTRA_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@
+LIBAEB_EXTRA_LIBS = @LIBAEB_EXTRA_LIBS@
 LIBAEB_INCLUDE = @LIBAEB_INCLUDE@
 LIBAEB_LIBS = @LIBAEB_LIBS@
 LIBAEB_LINK = @LIBAEB_LINK@
@@ -379,6 +392,9 @@ PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PLATFORM_CFLAGS = @PLATFORM_CFLAGS@
+PTHREAD_CC = @PTHREAD_CC@
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -392,6 +408,7 @@ abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
+acx_pthread_config = @acx_pthread_config@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -424,6 +441,7 @@ localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
+module_configure_flags = @module_configure_flags@
 oldincludedir = @oldincludedir@
 pdfdir = @pdfdir@
 prefix = @prefix@
@@ -442,23 +460,29 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I build
-AM_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@
+AM_CPPFLAGS = @EXTRA_CPPFLAGS@
 AM_CFLAGS = $(DEBUG_CFLAGS) -Wall
 AEBINC = $(top_srcdir)/include
 AEBSRC = $(top_srcdir)/src
-EXTRA_DIST = LICENSE README.threads.md \
+LIBEVENT_PATCHES = libs/libevent-2.0.21-stable.automake.patch
+EXTRA_DIST = $(LIBEVENT_PATCHES) \
+             LICENSE README.threads.md \
              build/find_apu.m4 build/find_apr.m4 \
              build/attribute_may_alias.m4 \
              build/visibility_hidden.m4 \
              build/aeb_event_check_threads.m4 \
              build/aeb_has_threads.m4 \
+             build/acx_pthread.m4 \
              build/m4/aeb_args.m4
 
-SUBDIRS = .
+@BUILD_INCLUDED_LIBEVENT_TRUE@EXTRA_BUILD_DIRS = libs/libevent
+SUBDIRS = $(EXTRA_BUILD_DIRS) .
 @INSTALL_PKGCONFIG_TRUE@pkgconfigdir = $(libdir)/pkgconfig
 @INSTALL_PKGCONFIG_TRUE@pkgconfig_DATA = src/apr_event_bridge.pc
 lib_LTLIBRARIES = libaeb.la
 noinst_LTLIBRARIES = libaeb-static.la libcompat.la
+libcompat_la_SOURCES = lib/stub.c include/compat.h
+libcompat_la_LIBADD = @LTLIBOBJS@
 libaeb_la_includedir = $(includedir)/apr_event_bridge
 libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_version.h \
@@ -467,9 +491,9 @@ libaeb_la_include_HEADERS = $(AEBINC)/libaeb.h \
                             $(AEBINC)/libaeb_event_types.h \
                             $(AEBINC)/libaeb_event_info.h
 
+libaeb_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
+libaeb_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CPPFLAGS)
 libaeb_la_LDFLAGS = -version-info $(LIBAEB_ABI_MAJOR):$(LIBAEB_REVISION):$(LIBAEB_ABI_COMPAT)
-libcompat_la_SOURCES = lib/stub.c include/compat.h
-libcompat_la_LIBADD = @LTLIBOBJS@
 libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/internal.h include/compat.h include/event_types.h \
                     include/util.h src/util.c \
@@ -479,9 +503,11 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     src/timers.c \
                     src/loop.c
 
-libaeb_la_LIBADD = libcompat.la
+libaeb_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
+libaeb_static_la_CPPFLAGS = @LIBAEB_EXTRA_CPPFLAGS@ $(AM_CPPFLAGS)
+libaeb_static_la_CFLAGS = @LIBAEB_EXTRA_CFLAGS@ $(AM_CFLAGS)
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
-libaeb_static_la_LIBADD = libcompat.la
+libaeb_static_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 test_aeb_SOURCES = src/test.c
 test_aeb_LDADD = @LIBAEB_LIBS@ libaeb-static.la
 all: all-recursive
@@ -537,6 +563,8 @@ $(top_srcdir)/include/libaeb_config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure
 
 distclean-hdr:
 	-rm -f include/libaeb_config.h include/stamp-h1
+libs/configure-libs: $(top_builddir)/config.status $(top_srcdir)/libs/configure-libs.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
 include/libaeb_version.h: $(top_builddir)/config.status $(top_srcdir)/include/libaeb_version.h.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 src/apr_event_bridge.pc: $(top_builddir)/config.status $(top_srcdir)/src/apr_event_bridge.pc.in
@@ -593,16 +621,37 @@ src/$(am__dirstamp):
 src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
-src/util.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/weakref.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/event_info.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/timers.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/loop.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-util.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-weakref.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-base.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-event.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-event_info.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-timers.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_static_la-loop.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 
 libaeb-static.la: $(libaeb_static_la_OBJECTS) $(libaeb_static_la_DEPENDENCIES) $(EXTRA_libaeb_static_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(LINK)  $(libaeb_static_la_OBJECTS) $(libaeb_static_la_LIBADD) $(LIBS)
+	$(AM_V_CCLD)$(libaeb_static_la_LINK)  $(libaeb_static_la_OBJECTS) $(libaeb_static_la_LIBADD) $(LIBS)
+src/libaeb_la-util.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-weakref.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-base.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-event.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-event_info.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-timers.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/libaeb_la-loop.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 
 libaeb.la: $(libaeb_la_OBJECTS) $(libaeb_la_DEPENDENCIES) $(EXTRA_libaeb_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libaeb_la_LINK) -rpath $(libdir) $(libaeb_la_OBJECTS) $(libaeb_la_LIBADD) $(LIBS)
@@ -644,14 +693,21 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/apr_array_clear.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/apr_table_clone.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/stub.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/base.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event_info.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/loop.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-base.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-event.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-event_info.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-loop.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-timers.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-util.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_la-weakref.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-base.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-event.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-event_info.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-loop.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-timers.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-util.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/libaeb_static_la-weakref.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/timers.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/weakref.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -676,6 +732,104 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+src/libaeb_static_la-util.lo: src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-util.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-util.Tpo -c -o src/libaeb_static_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-util.Tpo src/$(DEPDIR)/libaeb_static_la-util.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/util.c' object='src/libaeb_static_la-util.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
+
+src/libaeb_static_la-weakref.lo: src/weakref.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-weakref.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-weakref.Tpo -c -o src/libaeb_static_la-weakref.lo `test -f 'src/weakref.c' || echo '$(srcdir)/'`src/weakref.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-weakref.Tpo src/$(DEPDIR)/libaeb_static_la-weakref.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/weakref.c' object='src/libaeb_static_la-weakref.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-weakref.lo `test -f 'src/weakref.c' || echo '$(srcdir)/'`src/weakref.c
+
+src/libaeb_static_la-base.lo: src/base.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-base.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-base.Tpo -c -o src/libaeb_static_la-base.lo `test -f 'src/base.c' || echo '$(srcdir)/'`src/base.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-base.Tpo src/$(DEPDIR)/libaeb_static_la-base.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/base.c' object='src/libaeb_static_la-base.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-base.lo `test -f 'src/base.c' || echo '$(srcdir)/'`src/base.c
+
+src/libaeb_static_la-event.lo: src/event.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-event.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-event.Tpo -c -o src/libaeb_static_la-event.lo `test -f 'src/event.c' || echo '$(srcdir)/'`src/event.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-event.Tpo src/$(DEPDIR)/libaeb_static_la-event.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/event.c' object='src/libaeb_static_la-event.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-event.lo `test -f 'src/event.c' || echo '$(srcdir)/'`src/event.c
+
+src/libaeb_static_la-event_info.lo: src/event_info.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-event_info.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-event_info.Tpo -c -o src/libaeb_static_la-event_info.lo `test -f 'src/event_info.c' || echo '$(srcdir)/'`src/event_info.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-event_info.Tpo src/$(DEPDIR)/libaeb_static_la-event_info.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/event_info.c' object='src/libaeb_static_la-event_info.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-event_info.lo `test -f 'src/event_info.c' || echo '$(srcdir)/'`src/event_info.c
+
+src/libaeb_static_la-timers.lo: src/timers.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-timers.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-timers.Tpo -c -o src/libaeb_static_la-timers.lo `test -f 'src/timers.c' || echo '$(srcdir)/'`src/timers.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-timers.Tpo src/$(DEPDIR)/libaeb_static_la-timers.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/timers.c' object='src/libaeb_static_la-timers.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-timers.lo `test -f 'src/timers.c' || echo '$(srcdir)/'`src/timers.c
+
+src/libaeb_static_la-loop.lo: src/loop.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -MT src/libaeb_static_la-loop.lo -MD -MP -MF src/$(DEPDIR)/libaeb_static_la-loop.Tpo -c -o src/libaeb_static_la-loop.lo `test -f 'src/loop.c' || echo '$(srcdir)/'`src/loop.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_static_la-loop.Tpo src/$(DEPDIR)/libaeb_static_la-loop.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/loop.c' object='src/libaeb_static_la-loop.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_static_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_static_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_static_la-loop.lo `test -f 'src/loop.c' || echo '$(srcdir)/'`src/loop.c
+
+src/libaeb_la-util.lo: src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-util.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-util.Tpo -c -o src/libaeb_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-util.Tpo src/$(DEPDIR)/libaeb_la-util.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/util.c' object='src/libaeb_la-util.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
+
+src/libaeb_la-weakref.lo: src/weakref.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-weakref.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-weakref.Tpo -c -o src/libaeb_la-weakref.lo `test -f 'src/weakref.c' || echo '$(srcdir)/'`src/weakref.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-weakref.Tpo src/$(DEPDIR)/libaeb_la-weakref.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/weakref.c' object='src/libaeb_la-weakref.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-weakref.lo `test -f 'src/weakref.c' || echo '$(srcdir)/'`src/weakref.c
+
+src/libaeb_la-base.lo: src/base.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-base.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-base.Tpo -c -o src/libaeb_la-base.lo `test -f 'src/base.c' || echo '$(srcdir)/'`src/base.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-base.Tpo src/$(DEPDIR)/libaeb_la-base.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/base.c' object='src/libaeb_la-base.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-base.lo `test -f 'src/base.c' || echo '$(srcdir)/'`src/base.c
+
+src/libaeb_la-event.lo: src/event.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-event.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-event.Tpo -c -o src/libaeb_la-event.lo `test -f 'src/event.c' || echo '$(srcdir)/'`src/event.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-event.Tpo src/$(DEPDIR)/libaeb_la-event.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/event.c' object='src/libaeb_la-event.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-event.lo `test -f 'src/event.c' || echo '$(srcdir)/'`src/event.c
+
+src/libaeb_la-event_info.lo: src/event_info.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-event_info.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-event_info.Tpo -c -o src/libaeb_la-event_info.lo `test -f 'src/event_info.c' || echo '$(srcdir)/'`src/event_info.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-event_info.Tpo src/$(DEPDIR)/libaeb_la-event_info.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/event_info.c' object='src/libaeb_la-event_info.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-event_info.lo `test -f 'src/event_info.c' || echo '$(srcdir)/'`src/event_info.c
+
+src/libaeb_la-timers.lo: src/timers.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-timers.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-timers.Tpo -c -o src/libaeb_la-timers.lo `test -f 'src/timers.c' || echo '$(srcdir)/'`src/timers.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-timers.Tpo src/$(DEPDIR)/libaeb_la-timers.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/timers.c' object='src/libaeb_la-timers.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-timers.lo `test -f 'src/timers.c' || echo '$(srcdir)/'`src/timers.c
+
+src/libaeb_la-loop.lo: src/loop.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -MT src/libaeb_la-loop.lo -MD -MP -MF src/$(DEPDIR)/libaeb_la-loop.Tpo -c -o src/libaeb_la-loop.lo `test -f 'src/loop.c' || echo '$(srcdir)/'`src/loop.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/libaeb_la-loop.Tpo src/$(DEPDIR)/libaeb_la-loop.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/loop.c' object='src/libaeb_la-loop.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libaeb_la_CPPFLAGS) $(CPPFLAGS) $(libaeb_la_CFLAGS) $(CFLAGS) -c -o src/libaeb_la-loop.lo `test -f 'src/loop.c' || echo '$(srcdir)/'`src/loop.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1070,7 +1224,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-recursive
 
-clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
+clean-am: clean-generic clean-libLTLIBRARIES clean-libtool clean-local \
 	clean-noinstLTLIBRARIES clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
@@ -1148,25 +1302,28 @@ uninstall-am: uninstall-libLTLIBRARIES \
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am \
 	am--refresh check check-am clean clean-cscope clean-generic \
-	clean-libLTLIBRARIES clean-libtool clean-noinstLTLIBRARIES \
-	clean-noinstPROGRAMS cscope cscopelist-am ctags ctags-am dist \
-	dist-all dist-bzip2 dist-gzip dist-lzip dist-shar dist-tarZ \
-	dist-xz dist-zip distcheck distclean distclean-compile \
-	distclean-generic distclean-hdr distclean-libtool \
-	distclean-tags distcleancheck distdir distuninstallcheck dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-libLTLIBRARIES \
-	install-libaeb_la_includeHEADERS install-man install-pdf \
-	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	installdirs-am maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
-	uninstall-am uninstall-libLTLIBRARIES \
+	clean-libLTLIBRARIES clean-libtool clean-local \
+	clean-noinstLTLIBRARIES clean-noinstPROGRAMS cscope \
+	cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
+	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
+	distcheck distclean distclean-compile distclean-generic \
+	distclean-hdr distclean-libtool distclean-tags distcleancheck \
+	distdir distuninstallcheck dvi dvi-am html html-am info \
+	info-am install install-am install-data install-data-am \
+	install-dvi install-dvi-am install-exec install-exec-am \
+	install-html install-html-am install-info install-info-am \
+	install-libLTLIBRARIES install-libaeb_la_includeHEADERS \
+	install-man install-pdf install-pdf-am install-pkgconfigDATA \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
 	uninstall-libaeb_la_includeHEADERS uninstall-pkgconfigDATA
 
+
+clean-local:
+	@rm -f $(top_srcdir)/confdefs.h $(top_srcdir)/conftest.*
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
