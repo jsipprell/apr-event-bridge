@@ -6,11 +6,11 @@ flags='--disable-libevent-regress --disable-debug-mode --disable-shared --enable
 silent_rules_set=no
 for flag in @module_configure_flags@; do
   case "$flag" in
-    --enable-*|--disable-*|--with-libevent|--without-libevent)
-      ;;
     --enable-silent-rules|--disable-silent-rules)
       flags="$flags${flags:+ }$flag"
       silent_rules_set=yes
+      ;;
+    --enable-*|--disable-*|--with-libevent|--without-libevent)
       ;;
     *)
       flags="$flags${flags:+ }$flag"
