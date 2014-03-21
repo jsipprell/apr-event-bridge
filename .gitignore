@@ -8,4 +8,5 @@ Makefile
 .deps/
 .libs/
 .dirstamp
+.dist-stamp
 test-*

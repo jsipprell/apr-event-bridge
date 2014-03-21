@@ -195,7 +195,7 @@ AC_FUNC_ALLOCA
 AC_FUNC_STRTOLD
 AC_CHECK_FUNCS_ONCE([strtod])
 
-libaeb_main_save_LIBS="$LIBS"
+AX_SAVE_FLAGS([aeb])
 LIBS="$LIBS${LIBS:+ }$LIBAEB_LIBS"
 
 AS_VAR_IF([aeb_with_libevent],[no],[
@@ -207,7 +207,7 @@ AS_IF([test x"$ac_cv_func_alloca_works" != x"yes"],
   [AC_MSG_ERROR([this system does not support alloca(), yet a compatible implementation is not included with this distribution])])
 
 AC_REPLACE_FUNCS([apr_table_clone apr_array_clear])
-LIBS="$libaeb_main_save_LIBS"
+AX_RESTORE_FLAGS([aeb])
 
 AS_IF([test x"$aeb_with_libevent" != x"yes"],[
   AS_IF([test x"$aeb_enable_threads" != x"no"],
