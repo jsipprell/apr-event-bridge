@@ -10,8 +10,8 @@
 #include <apr_atomic.h>
 
 #define ENTROPY_FILE "/dev/urandom"
-#define MAX_SLEEP APR_TIME_C(10000000)
-#define MIN_SLEEP APR_TIME_C(1000000)
+#define MAX_SLEEP APR_TIME_C(20000000)
+#define MIN_SLEEP APR_TIME_C(5000000)
 
 #define HEXFMT "0x%" APR_UINT64_T_HEX_FMT
 #define HEX(v) ((apr_uint64_t)(v) & 0xffffffff)
@@ -24,7 +24,9 @@ typedef struct {
   const char *name;
   apr_thread_t *t;
   struct timeval tv;
+  apr_interval_time_t sleep_time;
   apr_uint16_t counter;
+  aeb_event_t *event;
   struct event *ev;
 } threadstate_t;
 
@@ -54,6 +56,12 @@ static inline threadstate_t *STATE(void *data)
   return state;
 }
 
+static void test_sleep(apr_interval_time_t how_long)
+{
+  ASSERT(!aeb_event_loop_isrunning());
+  ASSERT(aeb_event_loop(&how_long) == APR_TIMEUP);
+}
+
 static void event_sleep_callback(evutil_socket_t s, short what, void *data)
 {
   threadstate_t *state = STATE(data);
@@ -64,6 +72,7 @@ static void event_sleep_callback(evutil_socket_t s, short what, void *data)
         state->name,
         HEX(state->t),HEX(s),(int)what);
 #endif
+#if 0
   if (state->tv.tv_sec > 0) {
     state->tv.tv_sec--;
 
@@ -73,11 +82,14 @@ static void event_sleep_callback(evutil_socket_t s, short what, void *data)
 #endif
     evtimer_add(state->ev,&state->tv);
   } else {
+#endif
 #if 0
     printf( "%s " HEXFMT " ALL DONE!\n",state->name,HEX(state->t));
 #endif
-    event_base_loopbreak(aeb_event_base());
+    aeb_event_loop_return_status(APR_CHILD_DONE);
+#if 0
   }
+#endif
 }
 
 static void event_sleep(threadstate_t *state)
@@ -85,8 +97,19 @@ static void event_sleep(threadstate_t *state)
   struct event_base *base = NULL;
 
   base = aeb_event_base();
+
 #if 0
   printf("++ %s event base is " HEXFMT "\n",STATE(state)->name,HEX(base));
+
+  if(state->event == NULL) {
+    AEB_APR_ASSERT(aeb_timer_create(state->pool,
+                                    event_sleep_callback_new,
+                                    state->sleep_time,
+                                    &state->event));
+    ASSERT(state->event != NULL);
+    AEB_APR_ASSERT(aeb_event_user_context_set(state->event,state));
+    AEB_APR_ASSERT(aeb_event_add(state->event));
+  }
 #endif
   if(state->ev == NULL)
     state->ev = evtimer_new(base,event_sleep_callback,state);
@@ -101,6 +124,10 @@ static void * APR_THREAD_FUNC test_thread(apr_thread_t *this, void *data)
   struct event_base *base = NULL;
   test_thread_start_info_t *info = NULL;
   threadstate_t *state;
+  apr_interval_time_t loop_timer;
+  apr_time_t start_time = apr_time_now();
+  apr_status_t st = APR_SUCCESS;
+  apr_uint16_t count;
 
   assert(pool != NULL);
   assert(apr_pool_userdata_get((void**)&name,"thread_name",pool) == APR_SUCCESS);
@@ -126,10 +153,33 @@ static void * APR_THREAD_FUNC test_thread(apr_thread_t *this, void *data)
   assert((state = apr_pcalloc(pool,sizeof(threadstate_t))) != NULL);
   state->t = this;
   state->p = pool;
+  state->sleep_time = info->sleep_time;
   state->tv.tv_sec = apr_time_sec(info->sleep_time);
   state->tv.tv_usec = apr_time_usec(info->sleep_time);
   event_sleep(state);
-  event_base_loop(base,0);
+
+  for(loop_timer = apr_time_from_sec(12), count = 0;
+    st == APR_SUCCESS || st == APR_TIMEUP;
+        st = aeb_event_loop(&loop_timer), count++) {
+
+    if(count == 0) continue;
+    if(st != APR_CHILD_DONE) {
+      apr_pool_t *tmp_pool;
+      tmp_pool = aeb_thread_static_pool_acquire();
+      assert(tmp_pool != NULL);
+      printf("[%s] secs:%0.4f work:%u st:%d\n",
+             name,(float)(apr_time_now()-start_time)/APR_USEC_PER_SEC,
+             (unsigned)apr_atomic_read32(&work_done),
+             (int)st);
+      aeb_thread_static_pool_release();
+    }
+    if(st == APR_TIMEUP)
+      loop_timer = apr_time_from_sec(3);
+  }
+
+  if(st != APR_SUCCESS && st != APR_CHILD_DONE)
+    fprintf(stderr,"%s: ERROR %s\n",name,aeb_errorstr(st,pool));
+
   apr_atomic_inc32(&work_done);
 #if 0
   printf("++ [%s] FINI\n",name);
@@ -181,7 +231,7 @@ static void * APR_THREAD_FUNC test_thread_launcher(apr_thread_t *this, void *dat
   apr_pool_destroy(start->pool);
   rv = test_thread(this,work_pool);
   assert(apr_thread_data_set(NULL,"thread_name",NULL,this) == APR_SUCCESS);
-  apr_pool_destroy(work_pool);
+  aeb_thread_static_pool_release();
   return rv;
 }
 
@@ -263,7 +313,8 @@ static void test_aeb_pools(void)
                                       APR_THREAD_TASK_PRIORITY_NORMAL,
                                       base) == APR_SUCCESS);
     }
-    printf("*** MAIN: stats q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+    printf("*** MAIN: stats/%u q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+                        (unsigned)apr_atomic_read32(&work_done),
                         (unsigned)apr_thread_pool_tasks_count(workers),
                         (unsigned)apr_thread_pool_threads_count(workers),
                         (unsigned)apr_thread_pool_busy_count(workers),
@@ -272,14 +323,15 @@ static void test_aeb_pools(void)
                         (unsigned)apr_thread_pool_threads_idle_timeout_count(workers),
                         (unsigned)apr_thread_pool_tasks_run_count(workers));
     fflush(stdout);
-    apr_sleep(apr_time_from_sec( (-1 * (int)tcount + 5) < 1 ? 1 : (-1 * (int)tcount + 5)));
+    test_sleep(apr_time_from_sec( (-1 * (int)tcount + 5) < 1 ? 1 : (-1 * (int)tcount + 5)));
     if (tcount < 100 && tcount % 10 == 0) {
       int j;
 #if 0
       printf("*** MAIN: taking a little break\n");
 #endif
       for(j = 1; j < 5; j++) {
-        printf("*** MAIN: stats q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+        printf("*** MAIN: stats/%u q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+                        (unsigned)apr_atomic_read32(&work_done),
                         (unsigned)apr_thread_pool_tasks_count(workers),
                         (unsigned)apr_thread_pool_threads_count(workers),
                         (unsigned)apr_thread_pool_busy_count(workers),
@@ -288,15 +340,16 @@ static void test_aeb_pools(void)
                         (unsigned)apr_thread_pool_threads_idle_timeout_count(workers),
                         (unsigned)apr_thread_pool_tasks_run_count(workers));
         fflush(stdout);
-        apr_sleep(apr_time_from_sec( (-1 * (int)tcount + 5) < 1 ? 1 : (-1 * (int)tcount + 5))-APR_TIME_C(500000));
+        test_sleep(apr_time_from_sec( (-1 * (int)tcount + 5) < 1 ? 1 : (-1 * (int)tcount + 5))-APR_TIME_C(500000));
       }
     }
   }
   if (tcount >= 100) {
     apr_uint32_t w;
-    for(w = apr_atomic_read32(&work_done); w < 100 && apr_thread_pool_busy_count(workers) > 0; 
+    for(w = apr_atomic_read32(&work_done); w < 100 && apr_thread_pool_busy_count(workers) > 0;
                                            w = apr_atomic_read32(&work_done)) {
-      printf("*** MAIN: stats remain:%u q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+      printf("*** MAIN: stats/%u remain:%u q:%u th:%u busy:%u idle:%u hi:%u ti:%u to:%u\n",
+                    (unsigned)apr_atomic_read32(&work_done),
                     (unsigned)(100 - w)-1,
                     (unsigned)apr_thread_pool_tasks_count(workers),
                     (unsigned)apr_thread_pool_threads_count(workers),
@@ -306,7 +359,7 @@ static void test_aeb_pools(void)
                     (unsigned)apr_thread_pool_threads_idle_timeout_count(workers),
                     (unsigned)apr_thread_pool_tasks_run_count(workers));
       fflush(stdout);
-      apr_sleep(apr_time_from_sec(1));
+      test_sleep(apr_time_from_sec(1));
     }
   }
   assert(apr_thread_pool_destroy(workers) == APR_SUCCESS);
@@ -333,7 +386,7 @@ static void test_aeb(void)
   apr_pool_cleanup_register(pool,pool,debug_destroy_worker_pool,apr_pool_cleanup_null);
   printf("=== NEW POOL " HEXFMT " FOR UNBORN THREAD ===\n",HEX(pool));
   t = new_thread("thread 1",NULL,NULL,NULL,pool);
-  apr_sleep(apr_time_from_sec(20));
+  test_sleep(apr_time_from_sec(20));
   assert(t != NULL);
   printf("MAIN joining thread 1\n");
   fflush(stdout);
@@ -344,7 +397,7 @@ static void test_aeb(void)
   else
     printf("thread exited, status %u\n",(unsigned)st);
   apr_pool_destroy(pool);
-  apr_sleep(apr_time_from_sec(5));
+  test_sleep(apr_time_from_sec(5));
   /* apr_pool_destroy(pool); */
 }
 

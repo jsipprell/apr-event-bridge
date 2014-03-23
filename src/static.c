@@ -102,13 +102,14 @@ static inline void possibly_init_global_pool(void)
   static volatile apr_uint32_t spinlock = 0;
   apr_status_t st;
 
-  assert(apr_atomic_cas32(&spinlock,1,0) == 0);
-    if(global_pool == NULL) {
-      AEB_APR_ASSERT(apr_pool_create_unmanaged(&global_pool));
-      ASSERT(global_init_once == NULL);
-      AEB_APR_ASSERT(apr_thread_once_init(&global_init_once,global_pool));
-    }
-  assert(apr_atomic_cas32(&spinlock,0,1) == 1);
+  while(apr_atomic_cas32(&spinlock,1,0) != 0)
+    ;
+  if(global_pool == NULL) {
+    AEB_APR_ASSERT(apr_pool_create_unmanaged(&global_pool));
+    ASSERT(global_init_once == NULL);
+    AEB_APR_ASSERT(apr_thread_once_init(&global_init_once,global_pool));
+  }
+  assert(apr_atomic_dec32(&spinlock) == 0);
   AEB_APR_ASSERT(apr_thread_once(global_init_once,init_global_pool));
 }
 #else /* !AEB_USE_THREADS */
@@ -197,7 +198,7 @@ AEB_INTERNAL(apr_pool_t*) aeb_thread_static_pool_acquire(void)
       ASSERT(apr_palloc(pool,AEB_POOL_BLOCK_SIZE) != NULL);
       apr_pool_clear(pool);
       ASSERT((info = apr_palloc(pool,sizeof(aeb_tls_static_pool_t))) != NULL);
-      info->pool = pool;
+      AEB_APR_ASSERT(apr_pool_create(&info->pool,pool));
     AEB_APR_ASSERT(apr_thread_mutex_unlock(global_mutex));
 
     apr_atomic_set32(&info->refcount,1);
@@ -221,7 +222,7 @@ AEB_INTERNAL(void) aeb_thread_static_pool_release(void)
   if(apr_atomic_read32(&initialized) == 0)
     possibly_init_global_pool();
 
-  AEB_APR_ASSERT(apr_threadkey_private_set((void**)&info,tls_pools));
+  AEB_APR_ASSERT(apr_threadkey_private_get((void**)&info,tls_pools));
   ASSERT(info != NULL);
   if(apr_atomic_dec32(&info->refcount) == 0)
     apr_pool_clear(info->pool);

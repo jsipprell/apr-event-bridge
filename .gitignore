@@ -11,3 +11,5 @@ libtool
 .dirstamp
 .dist-stamp
 test-*
+confdefs.h
+conftest.*

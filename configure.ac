@@ -10,6 +10,7 @@ AC_CONFIG_SRCDIR(src)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([subdir-objects])
 AM_MAINTAINER_MODE([enable])
+AM_SILENT_RULES([yes])
 
 LIBAEB_EXTRA_CPPFLAGS=
 LIBAEB_EXTRA_CFLAGS=
@@ -82,26 +83,9 @@ AM_CONDITIONAL([BUILD_INCLUDED_LIBEVENT],[test x"$aeb_with_libevent" = x"yes"])
 AM_CONDITIONAL([INSTALL_PKGCONFIG],[test x"$aeb_enable_install_pc" = x"yes" ])
 
 AS_IF([test x"$aeb_enable_debug" = x"unset"],
-  [aeb_silent_rules=
-   aeb_set_silent_rules=yes],
+  [],
   [enable_shared=no
-   enable_static=yes
-   aeb_silent_rules="$aeb_enable_debug"])
-
-AS_CASE($aeb_silent_rules,
-  [gdb],[aeb_set_silent_rules=
-         aeb_enable_silent_rules="--disable-silent-rules"],
-  [no],[aeb_set_silent_rules=yes
-        aeb_enable_silent_rules="--enable-silent-rules"],
-  [yes],[aeb_set_silent_rules=no
-         aeb_enable_silent_rules="--disable-silent-rules"],
-        [aeb_set_silent_rules=yes
-         aeb_enable_silent_rules=])
-
-AS_CASE($aeb_set_silent_rules,
-  [yes],[AM_SILENT_RULES([yes])],
-  [no],[AM_SILENT_RULES([no])],
-  [])
+   enable_static=yes])
 
 AS_CASE($aeb_enable_debug,
   [gdb],[AS_VAR_IF([AEB_USER_ASSERTED_CFLAGS],[""],
@@ -216,7 +200,7 @@ AS_VAR_IF([aeb_with_libevent],[no],[
 dnl Start standard autoconf stuff
 AC_STDC_HEADERS
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([signal.h assert.h])
+AC_CHECK_HEADERS([stdbool.h signal.h assert.h])
 AC_FUNC_ALLOCA
 AC_FUNC_STRTOLD
 AC_CHECK_FUNCS_ONCE([strtod])
@@ -329,4 +313,4 @@ AC_CONFIG_FILES([libs/configure-libs],[chmod a+x libs/configure-libs])
 AM_CONFIG_HEADER([include/libaeb_config.h])
 
 AC_OUTPUT([Makefile include/libaeb_version.h src/apr_event_bridge.pc])
-cd $srcdir/libs && ./configure-libs $aeb_enable_silent_rules
+cd $srcdir/libs && ./configure-libs

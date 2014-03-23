@@ -49,7 +49,11 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
     if(ev->associated_pool)
       pool = ev->associated_pool;
     else {
+#ifdef AEB_USE_THREADS
+      ASSERT((pool = aeb_thread_static_pool_acquire()) != NULL);
+#else
       ASSERT(apr_pool_create(&pool,ev->pool) == APR_SUCCESS);
+#endif
       destroy_pool++;
     }
 
@@ -61,7 +65,11 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
   }
 
   if(destroy_pool)
+#ifdef AEB_USE_THREADS
+    aeb_thread_static_pool_release();
+#else
     apr_pool_destroy(pool);
+#endif
 }
 
 static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd_t *d)
@@ -298,7 +306,7 @@ AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t *ev, apr_interval_time_t
 
   if(t) {
     memcpy(&ev->timeout,t,sizeof(apr_interval_time_t));
-    ev->timeout |= AEB_EVENT_HAS_TIMEOUT;
+    ev->flags |= AEB_EVENT_HAS_TIMEOUT;
   } else {
     ev->timeout = APR_TIME_C(0);
     ev->flags &= ~AEB_EVENT_HAS_TIMEOUT;

@@ -10,7 +10,7 @@ struct aeb_event_info {
   aeb_event_t *event;  /* opaque event handle */
   aeb_event_type_t type;
   apr_uint16_t flags;
-  
+
   /* NB: The contents of the following union cannot be arbitrarly changed without
    * also changing AEB internals.
    */

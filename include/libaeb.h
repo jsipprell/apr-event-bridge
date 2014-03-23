@@ -91,6 +91,13 @@
 # endif /* HAVE_EVENT2_THREAD_H */
 #endif /* AEB_USE_THREADS */
 
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+#undef bool
+typedef apr_byte_t bool;
+#endif /* HAVE_STDBOOL_H */
+
 #ifndef APR_VERSION_AT_LEAST
 #define APR_VERSION_AT_LEAST(major,minor,patch)                    \
                           (((major) < APR_MAJOR_VERSION)           \
@@ -104,6 +111,11 @@
 
 #ifndef APR_ARRAY_IDX
 #define APR_ARRAY_IDX(ary,i,type) (((type *)(ary)->elts)[i])
+#endif
+
+/* We support up to 10 priorities */
+#ifndef AEB_MAX_PRIORITIES
+#define AEB_MAX_PRIORITIES 10
 #endif
 
 /* shared common flags */
@@ -153,7 +165,7 @@ typedef apr_status_t (*aeb_event_callback_fn)(apr_pool_t*,const aeb_event_info_t
  * but duration will still be set on exit.
  *
  * This function may return other values if the event loop is terminated
- * in other ways (such as via aeb_event_loop_terminate()).
+ * in other ways (such as via aeb_event_loop_return_status()).
  */
 AEB_API(apr_status_t) aeb_event_loop(apr_interval_time_t *duration);
 
@@ -161,8 +173,11 @@ AEB_API(apr_status_t) aeb_event_loop(apr_interval_time_t *duration);
  * event occurs. Duration will be set if non NULL but is not used to
  * limit the maximum run time.
  */
-AEB_API(apr_status_t) aeb_event_loopn(apr_ssize_t count,
-                                      apr_interval_time_t *duration);
+AEB_API(apr_status_t) aeb_event_timed_loopn(apr_ssize_t times,
+                                            apr_interval_time_t *duration);
+AEB_API(apr_status_t) aeb_event_timeout_loopn(apr_ssize_t times,
+                                            apr_interval_time_t *timeout);
+AEB_API(apr_status_t) aeb_event_loopn(apr_ssize_t times);
 
 /* A non-blocking version of the event loop. This will handle queued events
  * but never block. Duration will be set if non NULL but is not used
@@ -170,6 +185,17 @@ AEB_API(apr_status_t) aeb_event_loopn(apr_ssize_t count,
  * APR_SUCCESS.
  */
 AEB_API(apr_status_t) aeb_event_loop_try(apr_interval_time_t *duration);
+
+/* Return an apr status code to the caller of aeb_event_loop() and friends. */
+AEB_API(apr_status_t) aeb_event_loop_return_status(apr_status_t);
+
+/* Abort the currently running event loop upon return (must be called
+   from inside an event loop callback. */
+AEB_API(apr_status_t) aeb_event_loop_terminate(void);
+/* Return 1 if the main (per-thread if threading is enabled) event loop
+ * is currently running which means the caller is downstack from a callback.
+ */
+AEB_API(bool) aeb_event_loop_isrunning(void);
 
 /* event api */
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
@@ -219,5 +245,6 @@ AEB_API(apr_status_t) aeb_timer_create_ex(apr_pool_t*,
                                           apr_uint16_t flags,
                                           apr_interval_time_t duration,
                                           aeb_event_t**);
+#define aeb_timer_create(p,cb,t,evp) aeb_timer_create_ex((p),(cb),0,(t),(evp))
 
 #endif /* _LIBAEB_H */

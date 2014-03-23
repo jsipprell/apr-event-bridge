@@ -117,5 +117,10 @@ AEB_DECL_INTERNAL(void) aeb_thread_static_pool_release(void);
 #define AEB_GLOBAL_STATIC_POOL_ACQUIRE() aeb_global_static_pool_acquire(); {
 #define AEB_GLOBAL_STATIC_POOL_RELEASE() } aeb_global_static_pool_release();
 
+#ifdef AEB_USE_THREADS
+AEB_DECL_INTERNAL(apr_thread_t *) aeb_current_thread(void);
+#endif
+AEB_DECL_INTERNAL(apr_pool_t *) aeb_current_thread_private_pool(void);
+
 #endif /* _LIBAEB_INTERNAL_H */
 

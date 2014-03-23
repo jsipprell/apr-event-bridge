@@ -7,6 +7,8 @@
 #define HEX(v) ((apr_uint64_t)(v) & 0xffffffff)
 #define HEXL(v) ((apr_uint64_t)(v))
 
+#include <apr_atomic.h>
+
 #ifdef AEB_USE_THREADS
 
 #include <apr_thread_proc.h>
@@ -30,6 +32,7 @@ static struct event_base *base = NULL;
 #endif /* AEB_USE_THREADS */
 
 static apr_pool_t *aeb_base_pool = NULL;
+static volatile apr_uint32_t initialized = 0;
 
 #ifdef AEB_USE_THREADS
 static apr_thread_mutex_t *base_pool_mutex = NULL;
@@ -77,7 +80,6 @@ static apr_thread_t *get_thread(apr_pool_t *pool, const char **tag)
 
   return t;
 }
-
 static apr_status_t unregister_thread_base(void *data)
 {
   apr_os_thread_t *key = (apr_os_thread_t*)data;
@@ -133,7 +135,7 @@ static struct event_base *lookup_thread_base(apr_thread_t *t)
   UNLOCK_BASE_REGISTRY;
   return base;
 }
-#endif
+#endif /* AEB_USE_THREADS */
 
 #define AEB_MEMBLOCK_MAGIC APR_UINT64_C(0x34faf22a0baefb0a)
 typedef struct {
@@ -237,11 +239,12 @@ static void aeb_event_free(void *ptr)
 #ifdef AEB_USE_THREADS
 static apr_status_t cleanup_event_base(void *data)
 {
-  const char *tag = "??";
   struct event_base *base = (struct event_base*)data;
-  apr_pool_t *pool = get_thread_pool(&tag);
+
   if(base) {
 #if 0
+    const char *tag = "??";
+    apr_pool_t *pool = get_thread_pool(&tag);
     printf(HEXFMT64"/%s/DESTROY EVENT BASE " HEXFMT "\n",
           HEXL(pool),tag,HEX(base));
 #endif
@@ -310,8 +313,26 @@ static void init_aeb_threading(void)
   AEB_APR_ASSERT(apr_thread_mutex_create(&base_pool_mutex,APR_THREAD_MUTEX_DEFAULT,aeb_base_pool));
   event_set_mem_functions(aeb_event_malloc,aeb_event_realloc,aeb_event_free);
   AEB_APR_ASSERT(apr_thread_mutex_unlock(registry_mutex));
+
+  apr_atomic_inc32(&initialized);
 }
-#else
+
+static void possibly_init_aeb_threading(void)
+{
+  static volatile apr_uint32_t spinlock = 0;
+  apr_status_t st;
+
+  while(apr_atomic_cas32(&spinlock,1,0) != 0)
+    ;
+  if(thread_key_init_once == NULL) {
+    ASSERT(aeb_base_pool == NULL);
+    AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
+    AEB_APR_ASSERT(apr_thread_once_init(&thread_key_init_once,aeb_base_pool));
+  }
+  assert(apr_atomic_cas32(&spinlock,0,1) == 1);
+  AEB_APR_ASSERT(apr_thread_once(thread_key_init_once,init_aeb_threading));
+}
+#else /* !AEB_USE_THREADS */
 static void init_aeb_non_threaded(void)
 {
   apr_status_t st;
@@ -319,6 +340,7 @@ static void init_aeb_non_threaded(void)
   if(aeb_base_pool == NULL) {
     AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
     event_set_mem_functions(aeb_event_malloc,aeb_event_realloc,aeb_event_free);
+    apr_atomic_inc32(&initialized);
   }
 }
 #endif /* AEB_USE_THREADS */
@@ -344,18 +366,37 @@ AEB_INTERNAL(apr_status_t) aeb_thread_event_base_get(apr_thread_t *t, struct eve
   return *base ? APR_SUCCESS : APR_EINVAL;
 }
 
+#ifdef AEB_USE_THREADS
+AEB_INTERNAL(apr_thread_t *) aeb_current_thread(void)
+{
+  if(apr_atomic_read32(&initialized) == 0)
+    possibly_init_aeb_threading();
+
+  return get_thread(NULL,NULL);
+}
+#endif /* AEB_USE_THREADS */
+
+AEB_INTERNAL(apr_pool_t *) aeb_current_thread_private_pool(void)
+{
+  if(apr_atomic_read32(&initialized) == 0)
+#ifdef AEB_USE_THREADS
+    possibly_init_aeb_threading();
+  return get_thread_pool(NULL);
+#else
+    init_aeb_non_threaded();
+    return aeb_base_pool;
+#endif /* AEB_USE_THREADS */
+}
+
 AEB_INTERNAL(struct event_base*) aeb_event_base(void)
 {
 #ifdef AEB_USE_THREADS
   apr_status_t st;
   struct event_base *base = NULL;
-  if(thread_key_init_once == NULL) {
-    ASSERT(aeb_base_pool == NULL);
-    AEB_APR_ASSERT(apr_pool_create_unmanaged(&aeb_base_pool));
-    AEB_APR_ASSERT(apr_thread_once_init(&thread_key_init_once,aeb_base_pool));
-  }
 
-  AEB_APR_ASSERT(apr_thread_once(thread_key_init_once,init_aeb_threading));
+  if(apr_atomic_read32(&initialized) == 0)
+    possibly_init_aeb_threading();
+
   ASSERT(aeb_base_thread_key != NULL);
   ASSERT(aeb_thread_key != NULL);
   ASSERT(base_pool_mutex != NULL);
@@ -366,6 +407,7 @@ AEB_INTERNAL(struct event_base*) aeb_event_base(void)
 
     /* NOTE: pool is not created until first allocation actually performed */
     ASSERT((base = event_base_new()) != NULL);
+    AEB_ZASSERT(event_base_priority_init(base,AEB_MAX_PRIORITIES));
     pool = get_thread_pool(NULL);
     ASSERT(pool != NULL);
     thread = get_thread(pool,NULL);
@@ -382,6 +424,7 @@ AEB_INTERNAL(struct event_base*) aeb_event_base(void)
   if (base == NULL) {
     init_aeb_non_threaded();
     ASSERT((base = event_base_new()) != NULL);
+    AEB_ZASSERT(event_base_priority_init(base,AEB_MAX_PRIORITIES));
   }
 #endif /* AEB_USE_THREADS */
   return base;
