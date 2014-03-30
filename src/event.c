@@ -1,12 +1,27 @@
 #include "internal.h"
+#include "dispatch.h"
 
 #ifdef HAVE_EVENT2_EVENT_STRUCT_H
 #include <event2/event_struct.h>
 #endif
 
+#define AEB_FLAG_MASK (AEB_FLAG_SUBPOOL)
+
 AEB_POOL_IMPLEMENT_ACCESSOR(event)
 
-static void dispatch_callback(evutil_socket_t, short, void*);
+typedef enum {
+  aeb_bitop_or,
+  aeb_bitop_and,
+  aeb_bitop_xor,
+  aeb_bitop_and_not,
+  aeb_bitop_set
+} aeb_bitop_e;
+
+static apr_status_t dispatch_callback(aeb_event_t *ev,
+                                      apr_uint16_t flags,
+                                      const aeb_libevent_info_t *info,
+                                      apr_pool_t *pool);
+
 static apr_status_t *aeb_event_cleanup(aeb_event_t *ev)
 {
   if(ev->flags & AEB_EVENT_ADDED) {
@@ -38,58 +53,19 @@ AEB_INTERNAL(void) internal_event_del(aeb_event_t *ev)
   event_del(ev->event);
 }
 
-static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
+static apr_status_t dispatch_callback(aeb_event_t *ev,
+                                      apr_uint16_t flags,
+                                      const aeb_libevent_info_t *info,
+                                      apr_pool_t *pool)
 {
-  apr_status_t st = APR_SUCCESS;
-  apr_uint16_t flags = 0;
-  apr_pool_t *pool;
-  int destroy_pool = 0;
-  aeb_event_t *ev = (aeb_event_t*)data;
-
-  if(evflags & EV_READ) {
-    flags |= APR_POLLIN;
-    evflags &= ~EV_READ;
-  }
-  if(evflags & EV_WRITE) {
-    flags |= APR_POLLOUT;
-    evflags &= ~EV_WRITE;
-  }
-
-  flags |= ((evflags & 0x00ff) << 8);
-  if(!IS_EVENT_PERSIST(ev))
-    internal_event_del(ev);
-
-  if(ev->callback) {
-    if(ev->associated_pool)
-      pool = ev->associated_pool;
-    else {
-#ifdef AEB_USE_THREADS
-      ASSERT((pool = aeb_thread_static_pool_acquire()) != NULL);
-#else
-      ASSERT(apr_pool_create(&pool,ev->pool) == APR_SUCCESS);
-#endif
-      destroy_pool++;
-    }
-
-    /* FIXME: add event_info as second arg */
-    st = ev->callback(aeb_event_info_new(pool,ev,AEB_DESCRIPTOR_EVENT_DATA(ev),flags),
-                                                                    ev->user_context);
-    if(st != APR_SUCCESS)
-      fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
-  }
-
-  if(IS_EVENT_PERSIST(ev) && !IS_EVENT_ADDED(ev))
-    internal_event_add(ev);
-
-  if(destroy_pool)
-#ifdef AEB_USE_THREADS
-    aeb_thread_static_pool_release();
-#else
-    apr_pool_destroy(pool);
-#endif
+  assert(ev->callback != NULL);
+  
+  /* FIXME: add event_info as second arg */
+  return ev->callback(aeb_event_info_new(pool,ev,AEB_DESCRIPTOR_EVENT_DATA(ev),
+                                         flags),ev->user_context);
 }
 
-static apr_status_t aeb_assign(aeb_event_t *ev,
+AEB_INTERNAL(apr_status_t) aeb_assign(aeb_event_t *ev,
                                struct event_base *base,
                                evutil_socket_t fd,
                                short events,
@@ -163,9 +139,9 @@ static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd
 
     event_get_assignment(ev->event,&base,NULL,NULL,&callback,&callback_arg);
     if(callback == NULL)
-      callback = dispatch_callback;
+      callback = aeb_event_dispatcher;
     if(!callback_arg)
-      callback_arg = ev->user_context;
+      callback_arg = ev;
 
     if(ev->flags & 0xff00)
       eventset |= (ev->flags >> 8) & ~(EV_READ|EV_WRITE);
@@ -207,8 +183,12 @@ AEB_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t *pool,
   }
   ev->source = NULL;
   ev->event = pcalloc_libevent(ev->pool);
+  if (aeb_dispatch_table[aeb_event_type_descriptor] == NULL)
+    assert(aeb_event_dispatcher_register(aeb_event_type_descriptor,
+                                         dispatch_callback,
+                                         NULL,NULL) == APR_SUCCESS);
   AEB_ASSERT(ev->event,"apr_palloc failed while allocating struct event");
-  AEB_ASSERT(event_assign(ev->event,aeb_event_base(),-1,0,dispatch_callback,ev) == 0,
+  AEB_ASSERT(event_assign(ev->event,aeb_event_base(),-1,0,aeb_event_dispatcher,ev) == 0,
             "event_assign failure");
   apr_pool_cleanup_register(pool,ev,(cleanup_fn)aeb_event_cleanup,
                                           apr_pool_cleanup_null);
@@ -380,7 +360,7 @@ AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t *ev, apr_interval_time_t
   return APR_SUCCESS;
 }
 
-AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t *ev, apr_int16_t reqevents)
+static apr_status_t aeb_event_bit_op(aeb_event_t *ev, aeb_bitop_e op, apr_int16_t reqevents)
 {
   apr_status_t st = APR_EINVAL;
   apr_pollfd_t *pollfd = NULL;
@@ -393,13 +373,56 @@ AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t *ev, apr_int16
   if((flags = ev->flags) & AEB_EVENT_ADDED)
     internal_event_del(ev);
 
-  pollfd->reqevents = reqevents;
-  if ((st = aeb_assign(ev,NULL,-1,cvt_apr_events(reqevents),NULL,NULL)) == APR_SUCCESS && 
+  switch(op) {
+    case aeb_bitop_or:
+      pollfd->reqevents |= reqevents;
+      break;
+    case aeb_bitop_and:
+      pollfd->reqevents &= reqevents;
+      break;
+    case aeb_bitop_and_not:
+      pollfd->reqevents &= ~reqevents;
+      break;
+    case aeb_bitop_xor:
+      pollfd->reqevents ^= reqevents;
+      break;
+    default:
+      pollfd->reqevents = reqevents;
+      break;
+  }
+
+  if ((st = aeb_assign(ev,NULL,-1,cvt_apr_events(reqevents),NULL,NULL)) == APR_SUCCESS &&
                                         (flags & AEB_EVENT_ADDED) &&
+                                        (reqevents & (APR_POLLOUT|APR_POLLIN)) != 0 &&
                                         !IS_EVENT_ADDED(ev))
     internal_event_add(ev);
 
   return st;
+}
+
+AEB_API(apr_status_t) aeb_event_descriptor_events_or(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  return aeb_event_bit_op(ev,aeb_bitop_or,reqevents);
+}
+
+AEB_API(apr_status_t) aeb_event_descriptor_events_and(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  return aeb_event_bit_op(ev,aeb_bitop_and,reqevents);
+}
+
+AEB_API(apr_status_t) aeb_event_descriptor_events_not(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  return aeb_event_bit_op(ev,aeb_bitop_and_not,reqevents);
+}
+
+AEB_API(apr_status_t) aeb_event_descriptor_events_xor(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  return aeb_event_bit_op(ev,aeb_bitop_xor,reqevents);
+}
+
+AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  return aeb_event_bit_op(ev,aeb_bitop_set,reqevents);
 }
 
 AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd_t *desc)
@@ -473,11 +496,21 @@ AEB_API(apr_status_t) aeb_event_associate_pool(aeb_event_t *ev, apr_pool_t *pool
   return APR_SUCCESS;
 }
 
-AEB_API(apr_uint16_t) aeb_event_is_active(aeb_event_t *ev)
+AEB_API(apr_uint16_t) aeb_event_is_active(aeb_event_t *ev, apr_int32_t reqevents)
 {
   AEB_ASSERT(ev != NULL,"null event");
+  if (ev->flags & AEB_EVENT_ADDED) {
+    if (reqevents > -1) {
+      event_callback_fn cb = NULL;
+      short curevents = -1;
 
-  return (ev->flags & AEB_EVENT_ADDED);
+      reqevents = cvt_apr_events(reqevents);
+      event_get_assignment(ev->event,NULL,NULL,&curevents,&cb,NULL);
+      if (cb != NULL && curevents > -1)
+        return ((apr_uint16_t)curevents & (apr_uint16_t)reqevents);
+    } else return 1;
+  }
+  return 0;
 }
 
 AEB_API(apr_status_t) aeb_event_add(aeb_event_t *ev)
@@ -520,4 +553,23 @@ AEB_API(apr_status_t) aeb_event_userdata_get(void **data, const char *key,
                                              aeb_event_t *ev)
 {
   return apr_pool_userdata_get(data,key,ev->pool);
+}
+
+AEB_API(apr_status_t) aeb_event_flags_get(aeb_event_t *ev, apr_uint16_t *flags)
+{
+  if(!flags || !ev)
+    return APR_EINVAL;
+
+  *flags = (ev->flags & AEB_FLAG_ALL);
+  return APR_SUCCESS;
+}
+
+AEB_API(apr_status_t) aeb_event_flags_set(aeb_event_t *ev, apr_uint16_t flags)
+{
+  if(!ev || (flags & ~AEB_FLAG_ALL) != 0)
+    return APR_EINVAL;
+
+  ev->flags &= (ev->flags & ~AEB_FLAG_MASK) | (flags & AEB_FLAG_MASK);
+
+  return APR_SUCCESS;
 }

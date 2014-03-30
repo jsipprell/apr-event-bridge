@@ -125,10 +125,13 @@ typedef enum {
   aeb_flag_persist = EV_PERSIST << 8,
 #define AEB_FLAG_PERSIST aeb_flag_persist
 #ifdef EV_ET
-  aeb_flag_edge_triggered = EV_ET << 8
+  aeb_flag_edge_triggered = EV_ET << 8,
 #define AEB_FLAG_EDGE_TRIGGERED aeb_flag_edge_triggered
 #endif
+  aeb_flag_sub_pool = 0x1000
+#define AEB_FLAG_SUBPOOL aeb_flag_sub_pool
 } aeb_flag_t;
+#define AEB_FLAG_ALL 0xff00
 
 /* common types */
 typedef void aeb_context_t;
@@ -196,6 +199,8 @@ AEB_API(apr_status_t) aeb_event_loop_terminate(void);
  * is currently running which means the caller is downstack from a callback.
  */
 AEB_API(bool) aeb_event_loop_isrunning(void);
+/* Execute a callback immediately upon the next event loop pass */
+AEB_API(apr_status_t) aeb_event_loop_call(aeb_event_callback_fn cb, void*);
 
 /* event api */
 AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
@@ -204,15 +209,31 @@ AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
                                             apr_interval_time_t *timeout,
                                             aeb_event_t**);
 #define aeb_event_create(pool,callback,ev) aeb_event_create_ex((pool),(callback),NULL,NULL,(ev))
+
 AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t*,apr_interval_time_t*);
 AEB_API(apr_status_t) aeb_event_timeout_get(aeb_event_t*,apr_interval_time_t*);
 AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t*, const apr_pollfd_t*);
 AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t*, apr_int16_t);
+AEB_API(apr_status_t) aeb_event_descriptor_events_or(aeb_event_t*, apr_int16_t);
+AEB_API(apr_status_t) aeb_event_descriptor_events_and(aeb_event_t*, apr_int16_t);
+AEB_API(apr_status_t) aeb_event_descriptor_events_not(aeb_event_t*, apr_int16_t);
+AEB_API(apr_status_t) aeb_event_descriptor_events_xor(aeb_event_t*, apr_int16_t);
 AEB_API(apr_status_t) aeb_event_callback_set(aeb_event_t*, aeb_event_callback_fn);
 AEB_API(apr_status_t) aeb_event_associate_pool(aeb_event_t*, apr_pool_t*);
 AEB_API(apr_status_t) aeb_event_add(aeb_event_t*);
 AEB_API(apr_status_t) aeb_event_del(aeb_event_t*);
-AEB_API(apr_uint16_t) aeb_event_is_active(aeb_event_t*);
+/* Set behavior flags. Only AEB_FLAG_SUBPOOL can currently be set or cleared through
+ * this call. When this flag is set all callbacks will have a private subpool created
+ * (avail in info->pool) and destroyed before/after the call.
+ */
+AEB_API(apr_status_t) aeb_event_flags_get(aeb_event_t*, apr_uint16_t*);
+AEB_API(apr_status_t) aeb_event_flags_set(aeb_event_t*, apr_uint16_t);
+
+/* Returns !0 if an event is currently active (not necessarily pending) for the
+ * matching apr_poll constants (APR_POLLIN, APR_POOLOUT, etc).
+ * Passing -1 will return !0 if the event is active for any or no reqevents.
+ */
+AEB_API(apr_uint16_t) aeb_event_is_active(aeb_event_t*,apr_int32_t reqevents);
 /* Set an opaque user context that will be passed to callbacks */
 AEB_API(apr_status_t) aeb_event_user_context_set(aeb_event_t*,void*);
 /* Userdata management */
@@ -256,4 +277,64 @@ AEB_API(apr_status_t) aeb_timer_create_ex(apr_pool_t*,
                                           aeb_event_t**);
 #define aeb_timer_create(p,cb,t,evp) aeb_timer_create_ex((p),(cb),0,(t),(evp))
 
+/* bucket brigade api */
+AEB_API(apr_status_t) aeb_brigade_create_ex(apr_pool_t*,
+                                            aeb_event_callback_fn,
+                                            apr_socket_t*,
+                                            apr_uint32_t flags,
+                                            apr_interval_time_t timeout,
+                                            aeb_event_t**);
+#define aeb_brigade_create(p,cb,s,evp) aeb_brigade_create_ex((p),(cb),(s),0,APR_TIME_C(-1),(evp))
+AEB_API(apr_status_t) aeb_brigade_socket_set(aeb_event_t*,apr_socket_t*);
+AEB_API(apr_status_t) aeb_brigade_socket_get(const aeb_event_t*, apr_socket_t**);
+/* Customize indivual callbacks (if specific style callbacks are not set,
+ * the default is to always use the main event callback
+ */
+AEB_API(apr_status_t) aeb_brigade_read_callback_set(aeb_event_t*,aeb_event_callback_fn);
+AEB_API(apr_status_t) aeb_brigade_write_callback_set(aeb_event_t*,aeb_event_callback_fn);
+AEB_API(apr_status_t) aeb_brigade_timeout_callback_set(aeb_event_t*,aeb_event_callback_fn);
+/* reading */
+/* enable a brigade for event-based reading, once enabled the brigade will
+   begin to collect data during the associated event loop via libevent.
+   Read callbacks will happen as data becomes available and the callback
+   should used aeb_brigade_read() to access the data. */
+AEB_API(apr_status_t) aeb_brigade_read_enable(aeb_event_t*, int enabled);
+/* Returns data from the bucket brigade removing it permanently from the head.
+   Normally all available data currently available is returned but "max"
+   can be used to chunk it. The returned data is only available until the
+   end of the current event callback. !! This function should not be used
+   outside of a callback !!
+ */
+AEB_API(apr_status_t) aeb_brigade_read_ex(const aeb_event_info_t*, 
+                                          apr_byte_t **ptr, apr_size_t *len,
+                                          apr_ssize_t max);
+#define aeb_brigade_read(ei,ptr,len) aeb_brigade_read_ex((ei),(ptr),(len),-1)
+
+/* writing */
+/* It's normally not necessary to specifically enable writing on a brigade,
+   it just happens as soon as aeb_brigade_write() is called. However, this can
+   be used to temporarily disable event-based writing for a brigade. Note that this
+   does NOT cause aeb_brigade_write() to block or fail, it will continue to buffer
+   data via the brigade until it is "uncorked". */
+AEB_API(apr_status_t) aeb_brigade_write_enable(aeb_event_t*,int enabled);
+
+/* place data in the outgoing bucket bridade. This will cause a write event
+   to be registered so that the brigade automatically drains in the background.
+   The callback will be called when the write brigade drops below `write_low_water_marker`
+   setting. (default 0 bytes -- empty). */
+AEB_API(apr_status_t) aeb_brigade_write(aeb_event_t*, const apr_byte_t*,
+                                        apr_size_t len);
+
+/* Initiate an immediate flush of a write brigade. Calling this is usually not necessary.
+   It will put a flush bucket on the brigade and ensure that the underlying event
+   system has a write event associate with the brigade's socket */
+AEB_API(apr_status_t) aeb_brigade_flush(aeb_event_t*);
+/* aeb_brigade_close() is similar to flush except an end-of-stream bucket is used so
+  that the socket will automatically close once all data has been written. */
+AEB_API(apr_status_t) aeb_brigade_close(aeb_event_t*);
+
+/* returns the actual read/write bucket brigades in use */
+AEB_API(apr_status_t) aeb_event_bucket_brigade_get(const aeb_event_t*,
+                                                   apr_bucket_brigade **read_brigade,
+                                                   apr_bucket_brigade **write_brigade);
 #endif /* _LIBAEB_H */

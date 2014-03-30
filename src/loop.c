@@ -13,7 +13,8 @@ enum aeb_loop_event_type {
   aeb_le_exit,
   aeb_le_thread_abort,
   aeb_le_return_data,
-  aeb_le_return_status
+  aeb_le_return_status,
+  aeb_le_callback
 };
 
 typedef struct {
@@ -25,6 +26,10 @@ typedef struct {
     apr_status_t status;
     apr_int64_t code;
     apr_interval_time_t time;
+    union {
+      aeb_event_callback_fn fn;
+      void *arg;
+    } cb;
 #ifdef AEB_USE_THREADS
     apr_thread_t *thread;
 #endif
@@ -305,6 +310,10 @@ AEB_INTERNAL(apr_status_t) aeb_run_event_loop(apr_interval_time_t *timeout,
       case aeb_le_exit:
         done++;
         break;
+      case aeb_le_callback:
+        assert(lev->v.cb.fn != NULL);
+        st = lev->v.cb.fn(NULL,lev->v.cb.arg);
+        break;
       default:
         AEB_ASSERTV(lev == NULL,"unsupported loop event type %d",(int)lev->t);
         break;
@@ -324,6 +333,32 @@ AEB_INTERNAL(apr_status_t) aeb_run_event_loop(apr_interval_time_t *timeout,
   return st;
 }
 
+AEB_API(apr_status_t) aeb_event_loop_call(aeb_event_callback_fn cb, void *arg)
+{
+  aeb_loop_event_t *lev = NULL;
+  struct event_base *base = NULL;
+  if(apr_atomic_read32(&initialized) == 0)
+    possibly_init_aeb_loops();
+
+  if((lev = get_loop_event()) == NULL)
+    return APR_EINVAL;
+
+  ASSERT(lev->ev != NULL);
+  if(event_initialized(lev->ev) && !lev->fired) {
+    event_del(lev->ev);
+    base = event_get_base(lev->ev);
+  }
+
+  AEB_ASSERT(lev->fired == 0,"cannot nest event loop operations (returns, etc)");
+  lev->fired++;
+  lev->t = aeb_le_callback;
+  lev->v.cb.fn = cb;
+  lev->v.cb.arg = arg;
+
+  event_base_loopbreak(base ? base : aeb_event_base());
+  return APR_SUCCESS;
+
+}
 AEB_API(apr_status_t) aeb_event_loop_return_status(apr_status_t rst)
 {
   aeb_loop_event_t *lev = NULL;

@@ -162,8 +162,8 @@ libaeb_static_la_DEPENDENCIES = libcompat.la
 am__objects_1 =
 am__dirstamp = $(am__leading_dot)dirstamp
 am__objects_2 = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/static.lo src/base.lo src/event.lo src/event_info.lo \
-	src/timers.lo src/loop.lo
+	src/dispatch.lo src/static.lo src/base.lo src/event.lo \
+	src/event_info.lo src/timers.lo src/loop.lo
 am_libaeb_static_la_OBJECTS = $(am__objects_2)
 libaeb_static_la_OBJECTS = $(am_libaeb_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -176,8 +176,8 @@ libaeb_static_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	-o $@
 libaeb_la_DEPENDENCIES = libcompat.la
 am_libaeb_la_OBJECTS = $(am__objects_1) src/util.lo src/weakref.lo \
-	src/static.lo src/base.lo src/event.lo src/event_info.lo \
-	src/timers.lo src/loop.lo
+	src/dispatch.lo src/static.lo src/base.lo src/event.lo \
+	src/event_info.lo src/timers.lo src/loop.lo
 libaeb_la_OBJECTS = $(am_libaeb_la_OBJECTS)
 libaeb_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -506,6 +506,7 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/internal.h include/compat.h include/event_types.h \
                     include/util.h src/util.c \
                     include/weakref.h src/weakref.c \
+                    include/dispatch.h src/dispatch.c \
                     src/static.c \
                     src/base.c \
                     src/event.c src/event_info.c \
@@ -633,6 +634,7 @@ src/$(DEPDIR)/$(am__dirstamp):
 	@: > src/$(DEPDIR)/$(am__dirstamp)
 src/util.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/weakref.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/dispatch.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/static.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/base.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/event.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
@@ -689,6 +691,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/apr_table_clone.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/$(DEPDIR)/stub.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/base.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/dispatch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event_info.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/loop.Plo@am__quote@

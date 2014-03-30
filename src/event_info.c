@@ -5,6 +5,8 @@
 
 #define AEB_INFO_NAME(t) APR_STRINGIFY(t)
 
+typedef struct aeb_brigade_info aeb_brigade_info_t;
+
 static inline const char *aeb_event_type_name(aeb_event_type_t evtype)
 {
   const char *name;
@@ -21,6 +23,9 @@ static inline const char *aeb_event_type_name(aeb_event_type_t evtype)
     break;
   case AEB_SIGNAL_EVENT:
     name = AEB_INFO_NAME(signal);
+    break;
+  case AEB_BRIGADE_EVENT:
+    name = AEB_INFO_NAME(brigade);
     break;
   case AEB_RESERVED_EVENT:
     name = AEB_INFO_NAME(reserved);
@@ -89,6 +94,9 @@ AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
     break;
   case AEB_SIGNAL_EVENT:
     AEB_SIGNAL_EVENT_DATA(info) = data;
+    break;
+  case AEB_BRIGADE_EVENT:
+    AEB_BRIGADE_EVENT_DATA(info) = (aeb_brigade_info_t*)data;
     break;
   case AEB_RESERVED_EVENT:
     AEB_RESERVED_EVENT_DATA(info) = data;

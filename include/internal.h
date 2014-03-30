@@ -90,6 +90,7 @@ struct aeb_event {
     const apr_pollfd_t *descriptor_data;
     const void *timer_data;
     const void *signal_data;
+    apr_bucket_brigade *brigade_data;
   } d;
 
   /* Copy-on-Write clone source, NULL unless aeb_event_clone() has been called. */
@@ -98,6 +99,12 @@ struct aeb_event {
 
 AEB_DECL_INTERNAL(void) internal_event_add(aeb_event_t*);
 AEB_DECL_INTERNAL(void) internal_event_del(aeb_event_t*);
+AEB_DECL_INTERNAL(apr_status_t) aeb_assign(aeb_event_t*,
+                                           struct event_base*,
+                                           evutil_socket_t,
+                                           short,
+                                           event_callback_fn,
+                                           void*);
 
 AEB_DECL_INTERNAL(struct event_base*) aeb_event_base(void);
 AEB_DECL_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t*,aeb_event_callback_fn,
@@ -116,6 +123,12 @@ AEB_DECL_INTERNAL(void) aeb_global_static_pool_release(void);
 /* Static Thread Local (each is per thread with low contention once created) memory pools */
 AEB_DECL_INTERNAL(apr_pool_t*) aeb_thread_static_pool_acquire(void);
 AEB_DECL_INTERNAL(void) aeb_thread_static_pool_release(void);
+
+/* Bucket brigade events */
+typedef struct aeb_brigade_info aeb_brigade_info_t;
+
+/* main multiplex event dispatche r*/
+AEB_DECL_INTERNAL(void) aeb_event_dispatcher(evutil_socket_t,short,void*);
 
 /* Use the following two macros to ensure acquire()/release() pairing which
  * is absolutely crucial for globally shared static pools.

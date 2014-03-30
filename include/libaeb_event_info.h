@@ -21,6 +21,7 @@ struct aeb_event_info {
     const apr_pollfd_t *descriptor_data;
     const void *timer_data;
     const void *signal_data;
+    const apr_bucket_brigade *brigade_data;
   } d;
 
   /* AWLAYS use the macros from libaeb_event_types.h to access the above union,

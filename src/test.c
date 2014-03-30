@@ -416,7 +416,7 @@ static void test_aeb(void)
   apr_pool_cleanup_register(pool,pool,debug_destroy_worker_pool,apr_pool_cleanup_null);
   printf("=== NEW POOL " HEXFMT " FOR UNBORN THREAD ===\n",HEX(pool));
   t = new_thread("memcache client",NULL,memcache_client_thread,"localhost:11211",pool);
-  test_sleep(apr_time_from_sec(20));
+  test_sleep(apr_time_from_sec(6));
   assert(t != NULL);
   printf("MAIN joining thread 1\n");
   fflush(stdout);
@@ -427,7 +427,9 @@ static void test_aeb(void)
   else
     printf("thread exited, status %u\n",(unsigned)st);
   apr_pool_destroy(pool);
+#if 0
   test_sleep(apr_time_from_sec(5));
+#endif
   /* apr_pool_destroy(pool); */
 }
 

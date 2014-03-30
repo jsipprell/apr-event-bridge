@@ -62,6 +62,7 @@ libaeb_la_SOURCES = $(libaeb_la_include_HEADERS) \
                     include/internal.h include/compat.h include/event_types.h \
                     include/util.h src/util.c \
                     include/weakref.h src/weakref.c \
+                    include/dispatch.h src/dispatch.c \
                     src/static.c \
                     src/base.c \
                     src/event.c src/event_info.c \
