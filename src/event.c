@@ -89,6 +89,44 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
 #endif
 }
 
+static apr_status_t aeb_assign(aeb_event_t *ev,
+                               struct event_base *base,
+                               evutil_socket_t fd,
+                               short events,
+                               event_callback_fn cb,
+                               void *arg)
+{
+  struct event_base *old_base = NULL;
+  event_callback_fn old_cb = NULL;
+  evutil_socket_t old_fd = -1;
+  short old_events = -1;
+  void *old_arg = NULL;
+
+  event_get_assignment(ev->event,&old_base,&old_fd,&old_events,&old_cb,&old_arg);
+  if(!base) base = old_base;
+  if(fd < 0) fd = old_fd;
+  if(events <= 0) {
+    events = old_events;
+  } else if(ev->flags & 0xff00)
+    events |= (ev->flags >> 8) & ~(EV_READ|EV_WRITE);
+  if(!cb) cb = old_cb;
+  if(!arg) arg = old_arg;
+
+  ASSERT(event_assign(ev->event,base,fd,events,cb,arg) == 0);
+  return APR_SUCCESS;
+}
+
+inline static short cvt_apr_events(apr_int16_t reqevents)
+{
+  short eventset = 0;
+  if(reqevents & APR_POLLIN)
+    eventset |= EV_READ;
+  if(reqevents & APR_POLLOUT)
+    eventset |= EV_WRITE;
+
+  return eventset;
+}
+
 static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd_t *d)
 {
   evutil_socket_t fd = -1;
@@ -103,11 +141,7 @@ static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd
 
     if(d->client_data && ev->user_context == NULL)
       ev->user_context = d->client_data;
-    if(d->reqevents & APR_POLLIN)
-      eventset |= EV_READ;
-    if(d->reqevents & APR_POLLOUT)
-      eventset |= EV_WRITE;
-
+    eventset |= cvt_apr_events(d->reqevents);
     switch(d->desc_type) {
       case APR_POLL_FILE:
         st = apr_os_file_get(&fd,desc->f);
@@ -134,7 +168,7 @@ static apr_status_t aeb_assign_from_descriptor(aeb_event_t *ev, const apr_pollfd
       callback_arg = ev->user_context;
 
     if(ev->flags & 0xff00)
-      eventset |= (ev->flags >> 8);
+      eventset |= (ev->flags >> 8) & ~(EV_READ|EV_WRITE);
     ASSERT(event_assign(ev->event,base,fd,eventset,callback,callback_arg) == 0);
   }
 
@@ -298,6 +332,17 @@ AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t *pool,
   return APR_SUCCESS;
 }
 
+AEB_API(apr_status_t) aeb_event_callback_set(aeb_event_t *ev, aeb_event_callback_fn cb)
+{
+  AEB_ASSERT(ev != NULL,"null event");
+
+  if(!cb && !IS_EVENT_ADDED(ev) && (ev->flags & AEB_EVENT_HAS_TIMEOUT) == 0)
+    internal_event_del(ev);
+
+  ev->callback = cb;
+  return APR_SUCCESS;
+}
+
 AEB_API(apr_status_t) aeb_event_timeout_get(aeb_event_t *ev, apr_interval_time_t *t)
 {
   AEB_ASSERT(ev != NULL,"null event");
@@ -335,9 +380,32 @@ AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t *ev, apr_interval_time_t
   return APR_SUCCESS;
 }
 
+AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t *ev, apr_int16_t reqevents)
+{
+  apr_status_t st = APR_EINVAL;
+  apr_pollfd_t *pollfd = NULL;
+  apr_uint16_t flags;
+
+  if(!ev || ev->type != AEB_DESCRIPTOR_EVENT ||
+              (pollfd = (apr_pollfd_t*)AEB_DESCRIPTOR_EVENT_INFO(ev)) == NULL)
+    return st;
+
+  if((flags = ev->flags) & AEB_EVENT_ADDED)
+    internal_event_del(ev);
+
+  pollfd->reqevents = reqevents;
+  if ((st = aeb_assign(ev,NULL,-1,cvt_apr_events(reqevents),NULL,NULL)) == APR_SUCCESS && 
+                                        (flags & AEB_EVENT_ADDED) &&
+                                        !IS_EVENT_ADDED(ev))
+    internal_event_add(ev);
+
+  return st;
+}
+
 AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd_t *desc)
 {
   apr_uint16_t flags;
+  int reset_cleanup = 0, reset_indirect_cleanup = 0;
   AEB_ASSERT(ev != NULL,"null event");
 
   if(ev->type != AEB_DESCRIPTOR_EVENT && !AEB_EVENT_IS_NULL(ev))
@@ -345,14 +413,17 @@ AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd
 
   flags = ev->flags;
   if(AEB_DESCRIPTOR_EVENT_INFO(ev) && AEB_DESCRIPTOR_EVENT_DATA(ev)->p) {
-    if(!desc || AEB_DESCRIPTOR_EVENT_DATA(ev)->p != desc->p)
+    if(!desc || AEB_DESCRIPTOR_EVENT_DATA(ev)->p != desc->p) {
       apr_pool_cleanup_kill(AEB_DESCRIPTOR_EVENT_DATA(ev)->p,
                             ev,(cleanup_fn)aeb_event_cleanup);
-
-    if(desc != AEB_DESCRIPTOR_EVENT_DATA(ev))
+      reset_cleanup++;
+    }
+    if(desc != AEB_DESCRIPTOR_EVENT_DATA(ev)) {
       apr_pool_cleanup_kill(AEB_DESCRIPTOR_EVENT_DATA(ev)->p,
-                            &AEB_DESCRIPTOR_EVENT_DATA(ev),
-                            aeb_indirect_wipe);
+                              &AEB_DESCRIPTOR_EVENT_DATA(ev),
+                              aeb_indirect_wipe);
+      reset_indirect_cleanup++;
+    }
   }
 
   if (flags & AEB_EVENT_ADDED)
@@ -360,12 +431,17 @@ AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t *ev, const apr_pollfd
 
   ev->type = AEB_DESCRIPTOR_EVENT;
   AEB_DESCRIPTOR_EVENT_DATA(ev) = desc;
-  if(desc) {
-    if(desc->p && desc->p != ev->pool) {
+  if(desc && desc->p) {
+    if(reset_indirect_cleanup)
+      apr_pool_cleanup_register(desc->p,&AEB_DESCRIPTOR_EVENT_DATA(ev),
+                                aeb_indirect_wipe,
+                                apr_pool_cleanup_null);
+    if(reset_cleanup)
       apr_pool_cleanup_register(desc->p,ev,
                                 (cleanup_fn)aeb_event_cleanup,
                                 apr_pool_cleanup_null);
-    }
+  }
+  if(desc) {
     if (aeb_assign_from_descriptor(ev,desc) == APR_SUCCESS &&
                                             (flags & AEB_EVENT_ADDED) &&
                                           !(ev->flags & AEB_EVENT_ADDED))

@@ -74,10 +74,10 @@ libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
 libaeb_static_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 libaeb_static_la_LDFLAGS = -static
 
-test_aeb_SOURCES = src/test.c
+test_aeb_SOURCES = src/test.c src/mc.c
 test_aeb_LDADD = libaeb.la @LIBAEB_LIBS@
 
-test_aeb_static_SOURCES = src/test.c
+test_aeb_static_SOURCES = src/test.c src/mc.c
 test_aeb_static_LDADD = @LIBAEB_LIBS@ libaeb-static.la
 
 clean-local:

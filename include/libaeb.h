@@ -207,6 +207,7 @@ AEB_API(apr_status_t) aeb_event_create_ex(apr_pool_t*,
 AEB_API(apr_status_t) aeb_event_timeout_set(aeb_event_t*,apr_interval_time_t*);
 AEB_API(apr_status_t) aeb_event_timeout_get(aeb_event_t*,apr_interval_time_t*);
 AEB_API(apr_status_t) aeb_event_descriptor_set(aeb_event_t*, const apr_pollfd_t*);
+AEB_API(apr_status_t) aeb_event_descriptor_events_set(aeb_event_t*, apr_int16_t);
 AEB_API(apr_status_t) aeb_event_callback_set(aeb_event_t*, aeb_event_callback_fn);
 AEB_API(apr_status_t) aeb_event_associate_pool(aeb_event_t*, apr_pool_t*);
 AEB_API(apr_status_t) aeb_event_add(aeb_event_t*);

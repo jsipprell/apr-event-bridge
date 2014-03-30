@@ -9,6 +9,7 @@
 #include <apr_thread_proc.h>
 #include <apr_time.h>
 #include <apr_atomic.h>
+#include <apr_signal.h>
 
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -18,6 +19,8 @@
 
 #define HEXFMT "0x%" APR_UINT64_T_HEX_FMT
 #define HEX(v) ((apr_uint64_t)(v) & 0xffffffff)
+
+extern void * APR_THREAD_FUNC memcache_client_thread(apr_thread_t *t, void *data);
 
 static apr_pool_t *root_pool = NULL;
 static volatile apr_uint32_t work_done = 0;
@@ -412,7 +415,7 @@ static void test_aeb(void)
   assert(apr_pool_create(&pool,root_pool) == APR_SUCCESS);
   apr_pool_cleanup_register(pool,pool,debug_destroy_worker_pool,apr_pool_cleanup_null);
   printf("=== NEW POOL " HEXFMT " FOR UNBORN THREAD ===\n",HEX(pool));
-  t = new_thread("thread 1",NULL,NULL,NULL,pool);
+  t = new_thread("memcache client",NULL,memcache_client_thread,"localhost:11211",pool);
   test_sleep(apr_time_from_sec(20));
   assert(t != NULL);
   printf("MAIN joining thread 1\n");
@@ -432,12 +435,13 @@ int main(int argc, const char *const *argv, const char *const *env)
 {
   apr_status_t rc = apr_initialize();
 
+  apr_signal(SIGPIPE,SIG_IGN);
   AEB_ASSERT(rc == APR_SUCCESS,"apr_initialize failed");
   rc = apr_pool_create(&root_pool,NULL);
   AEB_ASSERT(rc == APR_SUCCESS,"apr_pool_create failued");
   apr_pool_tag(root_pool,"LIBAEB ROOT POOT");
 
-  test_aeb_pools();
+  test_aeb();
   apr_terminate();
   return 0;
 }

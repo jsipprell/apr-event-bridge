@@ -187,10 +187,10 @@ libcompat_la_DEPENDENCIES = @LTLIBOBJS@
 am_libcompat_la_OBJECTS = lib/stub.lo
 libcompat_la_OBJECTS = $(am_libcompat_la_OBJECTS)
 PROGRAMS = $(noinst_PROGRAMS)
-am_test_aeb_OBJECTS = src/test.$(OBJEXT)
+am_test_aeb_OBJECTS = src/test.$(OBJEXT) src/mc.$(OBJEXT)
 test_aeb_OBJECTS = $(am_test_aeb_OBJECTS)
 test_aeb_DEPENDENCIES = libaeb.la
-am_test_aeb_static_OBJECTS = src/test.$(OBJEXT)
+am_test_aeb_static_OBJECTS = src/test.$(OBJEXT) src/mc.$(OBJEXT)
 test_aeb_static_OBJECTS = $(am_test_aeb_static_OBJECTS)
 test_aeb_static_DEPENDENCIES = libaeb-static.la
 AM_V_P = $(am__v_P_@AM_V@)
@@ -516,9 +516,9 @@ libaeb_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 libaeb_static_la_SOURCES = $(libaeb_la_SOURCES)
 libaeb_static_la_LIBADD = libcompat.la @LIBAEB_EXTRA_LIBS@
 libaeb_static_la_LDFLAGS = -static
-test_aeb_SOURCES = src/test.c
+test_aeb_SOURCES = src/test.c src/mc.c
 test_aeb_LDADD = libaeb.la @LIBAEB_LIBS@
-test_aeb_static_SOURCES = src/test.c
+test_aeb_static_SOURCES = src/test.c src/mc.c
 test_aeb_static_LDADD = @LIBAEB_LIBS@ libaeb-static.la
 all: all-recursive
 
@@ -665,6 +665,7 @@ clean-noinstPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 src/test.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/mc.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 test-aeb$(EXEEXT): $(test_aeb_OBJECTS) $(test_aeb_DEPENDENCIES) $(EXTRA_test_aeb_DEPENDENCIES) 
 	@rm -f test-aeb$(EXEEXT)
@@ -691,6 +692,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/event_info.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/loop.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/mc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/static.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/timers.Plo@am__quote@
