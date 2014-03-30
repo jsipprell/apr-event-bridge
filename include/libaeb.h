@@ -137,7 +137,7 @@ typedef struct aeb_event_info aeb_event_info_t;
 
 AEB_POOL_EXPORT_ACCESSOR(event);
 
-typedef apr_status_t (*aeb_event_callback_fn)(apr_pool_t*,const aeb_event_info_t*,void*);
+typedef apr_status_t (*aeb_event_callback_fn)(const aeb_event_info_t *info, void *user_data);
 
 #ifdef HUGE_STRING_LEN
 #define AEB_BUFSIZE HUGE_STRING_LEN
@@ -219,6 +219,7 @@ AEB_API(apr_status_t) aeb_event_userdata_set(const void*,const char *,
                                              apr_status_t (*cleanup)(void*),
                                              aeb_event_t*);
 AEB_API(apr_status_t) aeb_event_userdata_get(void**,const char*,aeb_event_t*);
+AEB_API(const char*) aeb_event_name(const aeb_event_t*);
 
 /* NOTE: aeb_event_clone() "moves" an event to a new pool in a copy-on-write fashion.
  * This works by way of simply using the same reference to the original libevent
@@ -238,6 +239,13 @@ AEB_API(apr_status_t) aeb_event_clone(apr_pool_t*, const aeb_event_t *oldev,
 AEB_API(aeb_event_t) *aeb_event_info_event_get(const aeb_event_info_t*);
 AEB_API(apr_int16_t) *aeb_event_info_events(const aeb_event_info_t*);
 AEB_API(const apr_pollfd_t*) aeb_event_info_descriptor(const aeb_event_info_t*);
+AEB_API(const char*) aeb_event_info_name(const aeb_event_info_t*);
+
+/* This makes the aeb_event_info_pool_get() available, but strictly speaking this is not
+ * necessary as the event info data structure is exposed as part of the api.
+ * Note that this pool is available for use ONLY during the lifetime of the callback.
+ */
+AEB_POOL_EXPORT_ACCESSOR(event_info);
 
 /* timer api */
 AEB_API(apr_status_t) aeb_timer_create_ex(apr_pool_t*,

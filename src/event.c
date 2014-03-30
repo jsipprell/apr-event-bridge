@@ -21,9 +21,10 @@ static apr_status_t *aeb_event_cleanup(aeb_event_t *ev)
 
 static void internal_event_add(aeb_event_t *ev)
 {
-  apr_os_imp_time_t *tv = NULL;
+  apr_os_imp_time_t tval,*tv = NULL;
 
   if(ev->flags & AEB_EVENT_HAS_TIMEOUT) {
+    tv = &tval;
     AEB_ASSERT(apr_os_imp_time_get(&tv,&ev->timeout) == APR_SUCCESS,
                "apr_os_imp_time_get failure");
   }
@@ -58,8 +59,8 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
     }
 
     /* FIXME: add event_info as second arg */
-    st = ev->callback(pool,aeb_event_info_new(ev,AEB_DESCRIPTOR_EVENT_DATA(ev),flags),
-                      ev->user_context);
+    st = ev->callback(aeb_event_info_new(pool,ev,AEB_DESCRIPTOR_EVENT_DATA(ev),flags),
+                                                                    ev->user_context);
     if(st != APR_SUCCESS)
       fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
   }

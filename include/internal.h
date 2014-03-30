@@ -100,9 +100,8 @@ AEB_DECL_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t*,
                                                                  const void*,
                                                                  apr_uint16_t flags,
                                                                  apr_pool_t*);
-#define aeb_event_info_new(ev,data,flags) \
-                aeb_event_info_new_ex((ev),aeb_event_type_null, (data), (flags), NULL)
-
+#define aeb_event_info_new(p,ev,data,fl) \
+                aeb_event_info_new_ex((ev),aeb_event_type_null, (data), (fl), (p))
 
 /* Static Memory Pools (static.) */
 AEB_DECL_INTERNAL(apr_pool_t*) aeb_global_static_pool_acquire(void);

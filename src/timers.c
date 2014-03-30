@@ -26,8 +26,8 @@ static void dispatch_timer(evutil_socket_t unused, short evflags, void *data)
     }
 
     /* FIXME: add timing statistics as third arg to aeb_event_info_new_ex() */
-    st = ev->callback(pool,aeb_event_info_new_ex(ev,AEB_TIMER_EVENT,NULL,flags,pool),
-                                                 ev->user_context);
+    st = ev->callback(aeb_event_info_new_ex(ev,AEB_TIMER_EVENT,NULL,flags,pool),
+                                                              ev->user_context);
     if(st != APR_SUCCESS)
       fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
   }

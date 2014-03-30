@@ -3,10 +3,9 @@
 
 #include <libaeb_event_info.h>
 
-#define AEB_INFO_NAME(t) "AEB:event_info" APR_STRINGIFY(t)
+#define AEB_INFO_NAME(t) APR_STRINGIFY(t)
 
-#if 0
-static inline const char *event_info_key(aeb_event_type_t evtype)
+static inline const char *aeb_event_type_name(aeb_event_type_t evtype)
 {
   const char *name;
 
@@ -35,7 +34,16 @@ static inline const char *event_info_key(aeb_event_type_t evtype)
   }
   return name;
 }
-#endif
+
+AEB_API(const char*) aeb_event_name(const aeb_event_t*ev)
+{
+  return aeb_event_type_name(ev->type);
+}
+
+AEB_API(const char*) aeb_event_info_name(const aeb_event_info_t *evinfo)
+{
+  return aeb_event_type_name(evinfo->type);
+}
 
 AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
                                                             aeb_event_type_t evtype,
@@ -58,6 +66,7 @@ AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
 #endif
 
     ASSERT((info = apr_pcalloc(pool,sizeof(aeb_event_info_t))) != NULL);
+    info->pool = pool;
     info->type = evtype;
 #if 0
     apr_pool_userdata_set(info,event_info_key(evtype),NULL,pool);
@@ -92,3 +101,5 @@ AEB_INTERNAL(const aeb_event_info_t*) aeb_event_info_new_ex(aeb_event_t *ev,
   info->flags = flags;
   return info;
 }
+
+AEB_POOL_IMPLEMENT_ACCESSOR(event_info)

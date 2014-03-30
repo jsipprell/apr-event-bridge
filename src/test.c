@@ -3,11 +3,14 @@
 #include "util.h"
 
 #include <libaeb_assert.h>
+#include <libaeb_event_info.h>
 
 #include <apr_thread_pool.h>
 #include <apr_thread_proc.h>
 #include <apr_time.h>
 #include <apr_atomic.h>
+
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 #define ENTROPY_FILE "/dev/urandom"
 #define MAX_SLEEP APR_TIME_C(20000000)
@@ -62,6 +65,29 @@ static void test_sleep(apr_interval_time_t how_long)
   ASSERT(aeb_event_loop(&how_long) == APR_TIMEUP);
 }
 
+static apr_status_t event_sleep_callback_new(const aeb_event_info_t *info, void *data)
+{
+    threadstate_t *state = STATE(data);
+    const void *timer_data = AEB_TIMER_EVENT_INFO(info);
+
+    ASSERT(state != NULL);
+    ASSERT(info != NULL);
+
+    if (state->tv.tv_sec > 0)
+      state->tv.tv_sec--;
+    if (state->sleep_time >= apr_time_from_sec(1))
+      state->sleep_time -= apr_time_from_sec(1);
+    else
+      state->sleep_time = APR_TIME_C(0);
+#if 1
+    printf("TIMER %s - %u secs, type=%s, data="HEXFMT"\n",
+            state->name,(unsigned)apr_time_sec(state->sleep_time),
+            aeb_event_info_name(info),HEX(timer_data));
+#endif
+  aeb_event_loop_return_status(APR_CHILD_DONE);
+  return APR_SUCCESS;  
+}
+
 static void event_sleep_callback(evutil_socket_t s, short what, void *data)
 {
   threadstate_t *state = STATE(data);
@@ -95,14 +121,14 @@ static void event_sleep_callback(evutil_socket_t s, short what, void *data)
 static void event_sleep(threadstate_t *state)
 {
   struct event_base *base = NULL;
-
+  apr_status_t st;
   base = aeb_event_base();
 
-#if 0
+#if 1
   printf("++ %s event base is " HEXFMT "\n",STATE(state)->name,HEX(base));
 
   if(state->event == NULL) {
-    AEB_APR_ASSERT(aeb_timer_create(state->pool,
+    AEB_APR_ASSERT(aeb_timer_create(state->p,
                                     event_sleep_callback_new,
                                     state->sleep_time,
                                     &state->event));
@@ -110,10 +136,11 @@ static void event_sleep(threadstate_t *state)
     AEB_APR_ASSERT(aeb_event_user_context_set(state->event,state));
     AEB_APR_ASSERT(aeb_event_add(state->event));
   }
-#endif
+#else
   if(state->ev == NULL)
     state->ev = evtimer_new(base,event_sleep_callback,state);
   evtimer_add(state->ev,&state->tv);
+#endif
 }
 
 static void * APR_THREAD_FUNC test_thread(apr_thread_t *this, void *data)

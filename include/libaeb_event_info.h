@@ -7,6 +7,7 @@
  * regarding the event.
  */
 struct aeb_event_info {
+  apr_pool_t *pool;
   aeb_event_t *event;  /* opaque event handle */
   aeb_event_type_t type;
   apr_uint16_t flags;
@@ -25,7 +26,7 @@ struct aeb_event_info {
   /* AWLAYS use the macros from libaeb_event_types.h to access the above union,
    * i.e.:
    *
-   * static void apr_status_t callback(apr_pool_t*, cnost aeb_event_info_t *info, void *data)
+   * static void apr_status_t callback(const aeb_event_info_t *info, void *data)
    * {
    *   const apr_pollfd_t *desc = AEB_DESCRIPTOR_EVENT_INFO(info);
    *   ...
@@ -35,4 +36,5 @@ struct aeb_event_info {
    * event and has it's descriptor_data member set.
    */
 };
+
 #endif /* _LIBAEB_EVENT_INFO */
