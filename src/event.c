@@ -19,7 +19,7 @@ static apr_status_t *aeb_event_cleanup(aeb_event_t *ev)
   return APR_SUCCESS;
 }
 
-static void internal_event_add(aeb_event_t *ev)
+AEB_INTERNAL(void) internal_event_add(aeb_event_t *ev)
 {
   apr_os_imp_time_t tval,*tv = NULL;
 
@@ -32,7 +32,7 @@ static void internal_event_add(aeb_event_t *ev)
   ev->flags |= AEB_EVENT_ADDED;
 }
 
-static void internal_event_del(aeb_event_t *ev)
+AEB_INTERNAL(void) internal_event_del(aeb_event_t *ev)
 {
   ev->flags &= ~AEB_EVENT_ADDED;
   event_del(ev->event);
@@ -41,10 +41,23 @@ static void internal_event_del(aeb_event_t *ev)
 static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
 {
   apr_status_t st = APR_SUCCESS;
-  apr_uint16_t flags = ((evflags & 0x00ff) << 8);
+  apr_uint16_t flags = 0;
   apr_pool_t *pool;
   int destroy_pool = 0;
   aeb_event_t *ev = (aeb_event_t*)data;
+
+  if(evflags & EV_READ) {
+    flags |= APR_POLLIN;
+    evflags &= ~EV_READ;
+  }
+  if(evflags & EV_WRITE) {
+    flags |= APR_POLLOUT;
+    evflags &= ~EV_WRITE;
+  }
+
+  flags |= ((evflags & 0x00ff) << 8);
+  if(!IS_EVENT_PERSIST(ev))
+    internal_event_del(ev);
 
   if(ev->callback) {
     if(ev->associated_pool)
@@ -64,6 +77,9 @@ static void dispatch_callback(evutil_socket_t fd, short evflags, void *data)
     if(st != APR_SUCCESS)
       fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
   }
+
+  if(IS_EVENT_PERSIST(ev) && !IS_EVENT_ADDED(ev))
+    internal_event_add(ev);
 
   if(destroy_pool)
 #ifdef AEB_USE_THREADS

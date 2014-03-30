@@ -13,6 +13,9 @@ static void dispatch_timer(evutil_socket_t unused, short evflags, void *data)
 
   ASSERT(ev->type == AEB_TIMER_EVENT);
 
+  if(!IS_EVENT_PERSIST(ev))
+    internal_event_del(ev);
+
   if(ev->callback) {
     if(ev->associated_pool)
       pool = ev->associated_pool;
@@ -32,12 +35,16 @@ static void dispatch_timer(evutil_socket_t unused, short evflags, void *data)
       fprintf(stderr,"%s\n",aeb_errorstr(st,pool));
   }
 
+  if(IS_EVENT_PERSIST(ev) && !IS_EVENT_ADDED(ev))
+    internal_event_add(ev);
+
   if(destroy_pool)
 #ifdef AEB_USE_THREADS
     aeb_thread_static_pool_release();
 #else
     apr_pool_destroy(pool);
 #endif
+
 }
 
 AEB_API(apr_status_t) aeb_timer_create_ex(apr_pool_t *pool,

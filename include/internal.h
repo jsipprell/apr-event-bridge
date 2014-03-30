@@ -66,6 +66,10 @@ typedef enum {
 #define AEB_EVENT_HAS_TIMEOUT aeb_event_has_timeout
 } aeb_event_flag_e;
 
+
+#define IS_EVENT_ADDED(ev) (((ev)->flags & AEB_EVENT_ADDED) != 0)
+#define IS_EVENT_PERSIST(ev) (((ev)->flags & AEB_FLAG_PERSIST) != 0)
+
 /* private event data structure */
 struct aeb_event {
   apr_pool_t *pool;
@@ -91,6 +95,9 @@ struct aeb_event {
   /* Copy-on-Write clone source, NULL unless aeb_event_clone() has been called. */
   const struct aeb_event *source;
 };
+
+AEB_DECL_INTERNAL(void) internal_event_add(aeb_event_t*);
+AEB_DECL_INTERNAL(void) internal_event_del(aeb_event_t*);
 
 AEB_DECL_INTERNAL(struct event_base*) aeb_event_base(void);
 AEB_DECL_INTERNAL(aeb_event_t*) aeb_event_new(apr_pool_t*,aeb_event_callback_fn,
